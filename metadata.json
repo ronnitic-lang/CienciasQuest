@@ -1,0 +1,5 @@
+{
+  "name": "CienciasQuest",
+  "description": "A gamified Natural Sciences learning platform for Brazilian students (6th-9th grade) featuring diverse avatars, teacher controls, and AI-generated content based on BNCC standards.",
+  "requestFramePermissions": []
+}
