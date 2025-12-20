@@ -17,14 +17,14 @@ const Avatar: React.FC<AvatarProps> = ({ config, size = 100, className = '' }) =
       className={`rounded-full bg-blue-100 border-4 border-white shadow-lg ${className}`}
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* LAYER 0: Back Hair */}
+      {/* LAYER 0: Back Hair (Volume atrás da cabeça) */}
       {config.hairStyle === 'long' && (
-         <path d="M30,80 L30,160 Q100,210 170,160 L170,80 Z" fill={config.hairColor} />
+         <path d="M40,90 L40,165 Q100,195 160,165 L160,90 Z" fill={config.hairColor} />
       )}
       {config.hairStyle === 'puffs' && (
          <g>
-            <circle cx="35" cy="50" r="35" fill={config.hairColor} />
-            <circle cx="165" cy="50" r="35" fill={config.hairColor} />
+            <circle cx="45" cy="70" r="30" fill={config.hairColor} />
+            <circle cx="155" cy="70" r="30" fill={config.hairColor} />
          </g>
       )}
 
@@ -41,40 +41,42 @@ const Avatar: React.FC<AvatarProps> = ({ config, size = 100, className = '' }) =
         )}
       </g>
 
-      {/* LAYER 2: Head */}
+      {/* LAYER 2: Head Base */}
       <circle cx="100" cy="90" r="50" fill={config.skinColor} />
 
-      {/* LAYER 3: Facial Hair (Adult Features) */}
+      {/* LAYER 3: Facial Hair */}
       {config.facialHair === 'beard' && (
-        <path d="M60,110 Q100,150 140,110 L140,120 Q100,160 60,120 Z" fill={config.hairColor} opacity="0.9" />
+        <path d="M60,110 Q100,150 140,110 L140,125 Q100,165 60,125 Z" fill={config.hairColor} opacity="0.9" />
       )}
       {config.facialHair === 'mustache' && (
         <path d="M80,110 Q90,105 100,110 Q110,105 120,110 L120,115 Q100,110 80,115 Z" fill={config.hairColor} />
       )}
 
-      {/* LAYER 4: Hair Main */}
-      {config.hairStyle === 'short' && (
-        <path d="M50,90 Q50,30 100,30 T150,90 Q150,110 140,100 Q100,40 60,100 Q50,110 50,90 Z" fill={config.hairColor} />
+      {/* LAYER 4: Hair Main / Frontal (Correção do visual careca) */}
+      {(config.hairStyle === 'short' || config.hairStyle === 'long' || config.hairStyle === 'puffs') && (
+        <path d="M50,90 Q50,30 100,30 T150,90 Q150,105 135,95 Q100,50 65,95 Q50,105 50,90 Z" fill={config.hairColor} />
       )}
+      
       {config.hairStyle === 'fade' && (
         <path d="M55,70 Q100,35 145,70 L145,85 Q100,75 55,85 Z" fill={config.hairColor} />
       )}
+      
       {config.hairStyle === 'bob' && (
          <g>
-            <path d="M40,80 L35,140 Q35,160 70,145 L70,80 Z" fill={config.hairColor} />
-            <path d="M160,80 L165,140 Q165,160 130,145 L130,80 Z" fill={config.hairColor} />
-            <path d="M50,90 Q50,30 100,30 T150,90 Q150,110 140,100 Q100,40 60,100 Q50,110 50,90 Z" fill={config.hairColor} />
+            <path d="M40,85 L35,135 Q35,155 70,140 L70,85 Z" fill={config.hairColor} />
+            <path d="M160,85 L165,135 Q165,155 130,140 L130,85 Z" fill={config.hairColor} />
+            <path d="M50,90 Q50,30 100,30 T150,90 Q150,105 135,95 Q100,50 65,95 Q50,105 50,90 Z" fill={config.hairColor} />
          </g>
       )}
 
-      {/* LAYER 5: Face */}
-      <circle cx="80" cy="90" r="4" fill="#000" />
-      <circle cx="120" cy="90" r="4" fill="#000" />
+      {/* LAYER 5: Face Features */}
+      <circle cx="80" cy="95" r="4" fill="#000" />
+      <circle cx="120" cy="95" r="4" fill="#000" />
       <path d="M85,115 Q100,125 115,115" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" />
 
-      {/* LAYER 6: Headwear (Cultural/Diverse) */}
+      {/* LAYER 6: Headwear */}
       {config.headwear === 'turban' && (
-        <path d="M50,60 Q100,0 150,60 L140,80 Q100,70 60,80 Z" fill="#E6E6E6" stroke="#CCC" />
+        <path d="M50,65 Q100,5 150,65 L140,85 Q100,75 60,85 Z" fill="#E6E6E6" stroke="#CCC" />
       )}
       {config.headwear === 'cocar' && (
         <g transform="translate(50, 20)">
@@ -86,17 +88,17 @@ const Avatar: React.FC<AvatarProps> = ({ config, size = 100, className = '' }) =
       )}
       {config.headwear === 'strawHat' && (
         <g>
-            <ellipse cx="100" cy="50" rx="70" ry="20" fill="#DEB887" stroke="#A0522D" />
-            <path d="M70,50 Q70,20 100,20 T130,50" fill="#DEB887" stroke="#A0522D" />
+            <ellipse cx="100" cy="55" rx="75" ry="25" fill="#DEB887" stroke="#A0522D" />
+            <path d="M75,55 Q75,25 100,25 T125,55" fill="#DEB887" stroke="#A0522D" />
         </g>
       )}
 
       {/* LAYER 7: Accessories */}
       {config.accessory === 'glasses' && (
         <g stroke="#333" strokeWidth="2" fill="none">
-          <circle cx="80" cy="90" r="12" />
-          <circle cx="120" cy="90" r="12" />
-          <line x1="92" y1="90" x2="108" y2="90" />
+          <circle cx="80" cy="95" r="12" />
+          <circle cx="120" cy="95" r="12" />
+          <line x1="92" y1="95" x2="108" y2="95" />
         </g>
       )}
     </svg>

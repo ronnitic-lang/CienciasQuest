@@ -38,9 +38,11 @@ const Profile: React.FC = () => {
                  <Avatar config={config} size={200} className="mx-auto" />
                  <h2 className="mt-4 font-black text-2xl text-gray-800">{user?.name}</h2>
                  <p className="text-gray-400 font-bold mb-4 uppercase tracking-widest text-xs">{user?.role === UserRole.STUDENT ? 'ALUNO(A)' : 'PROFESSOR(A)'}</p>
-                 <div className="bg-blue-50 p-4 rounded-2xl">
-                    <p className="text-primary font-black text-2xl">{user?.xp || 0} XP</p>
-                 </div>
+                 {user?.role === UserRole.STUDENT && (
+                   <div className="bg-blue-50 p-4 rounded-2xl">
+                      <p className="text-primary font-black text-2xl">{user?.xp || 0} XP</p>
+                   </div>
+                 )}
             </div>
         </div>
 
@@ -128,7 +130,7 @@ const Profile: React.FC = () => {
                     </div>
                 </div>
 
-                <button onClick={handleSave} className="w-full bg-secondary hover:bg-green-600 text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-green-700 transition-all active:translate-y-1 active:border-b-4 flex items-center justify-center gap-2">
+                <button onClick={handleSave} className="w-full bg-primary hover:bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-blue-700 transition-all active:translate-y-1 active:border-b-4 flex items-center justify-center gap-2">
                     <Save size={24} /> SALVAR ALTERAÇÕES
                 </button>
             </div>

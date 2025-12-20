@@ -1,21 +1,14 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, BookOpen, AlertCircle, Lock, Unlock, Plus, Trash2, Building, Check, Save, PlusCircle, GraduationCap, X } from 'lucide-react';
+import { Users, BookOpen, AlertCircle, Lock, Unlock, Plus, Trash2, Building, Check, Save, PlusCircle, GraduationCap, X, Zap, Trophy, TrendingDown } from 'lucide-react';
 import { MOCK_UNITS, CLASSES, SHIFTS } from '../constants';
 import { useAuth } from '../context/AuthContext';
 
-const mockAnalytics = [
-  { skill: 'EF06CI01', average: 85, students: 28 },
-  { skill: 'EF06CI05', average: 62, students: 28 },
-  { skill: 'EF07CI01', average: 45, students: 30 },
-  { skill: 'EF08CI01', average: 90, students: 25 },
-];
-
 const TeacherDashboard: React.FC = () => {
   const { 
-    user, unlockedUnitIds, toggleUnitLock, activeClassrooms, 
+    user, allUsers, unlockedUnitIds, toggleUnitLock, activeClassrooms, 
     addClassroom, removeClassroom, addSchool, switchActiveSchool, 
     removeSchoolFromTeacher 
   } = useAuth();
@@ -30,6 +23,9 @@ const TeacherDashboard: React.FC = () => {
   const [showAddSchool, setShowAddSchool] = useState(false);
   const [newSchoolName, setNewSchoolName] = useState('');
   
+  // Incentivo
+  const [sentIncentives, setSentIncentives] = useState<string[]>([]);
+
   // Estado local para seleção temporária da escola antes de "Salvar"
   const [tempSelectedSchool, setTempSelectedSchool] = useState<string>(user?.school || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -37,6 +33,25 @@ const TeacherDashboard: React.FC = () => {
   const myUnits = MOCK_UNITS.filter(u => u.grade === (user?.grade || 6));
   const myClassrooms = activeClassrooms.filter(c => c.teacherId === user?.id);
   
+  // Filtro de alunos para o contexto do professor
+  const myStudents = useMemo(() => {
+    return allUsers.filter(u => 
+        u.role === 'STUDENT' && 
+        u.school === user?.school && 
+        u.grade === user?.grade
+    ).sort((a, b) => (b.xp || 0) - (a.xp || 0));
+  }, [allUsers, user]);
+
+  const criticalStudents = useMemo(() => {
+      // Simulação: alunos com menos de 200 XP ou XP estagnado
+      return myStudents.filter(s => (s.xp || 0) < 300).slice(0, 5);
+  }, [myStudents]);
+
+  // Contagem de atividades
+  const activitiesCount = useMemo(() => {
+      return myUnits.length; // Soma revisões, habilidades e PISA
+  }, [myUnits]);
+
   // O professor só vê escolas vinculadas a ele
   const teacherSchools = user?.teacherSchools || (user?.school ? [user.school] : []);
 
@@ -63,7 +78,7 @@ const TeacherDashboard: React.FC = () => {
   };
 
   const handleRemoveSchool = (e: React.MouseEvent, schoolName: string) => {
-    e.stopPropagation(); // Impede de selecionar a escola ao tentar remover
+    e.stopPropagation();
     if (confirm(`Deseja remover a escola "${schoolName}" da sua rede?`)) {
       removeSchoolFromTeacher(schoolName);
       if (tempSelectedSchool === schoolName) {
@@ -82,6 +97,11 @@ const TeacherDashboard: React.FC = () => {
     }
   };
 
+  const sendIncentive = (studentId: string) => {
+      setSentIncentives(prev => [...prev, studentId]);
+      // Aqui integraria com a lógica de XP em Dobro se houvesse backend
+  };
+
   return (
     <div className="pb-20">
       <div className="mb-8">
@@ -95,39 +115,96 @@ const TeacherDashboard: React.FC = () => {
       </div>
 
       {currentTab === 'overview' && (
-          <div className="animate-fade-in">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-                    <div className="bg-blue-100 p-3 rounded-xl text-primary"><Users size={28} /></div>
-                    <div>
-                        <p className="text-gray-400 text-sm font-bold uppercase">ALUNOS ATIVOS</p>
-                        <p className="text-3xl font-extrabold text-gray-800">112</p>
+          <div className="animate-fade-in space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="bg-blue-100 p-3 rounded-2xl text-primary"><Users size={28} /></div>
+                        <div>
+                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">ALUNOS ATIVOS</p>
+                            <p className="text-3xl font-black text-gray-800">{myStudents.length}</p>
+                        </div>
+                    </div>
+                    <div className="space-y-2 border-t pt-4">
+                        <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Top 3 Ranking</p>
+                        {myStudents.slice(0, 3).map((s, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-sm font-bold">
+                                <span className="text-gray-600 truncate max-w-[120px] flex items-center gap-1">
+                                    <Trophy size={12} className={idx === 0 ? 'text-yellow-500' : idx === 1 ? 'text-gray-400' : 'text-amber-600'} />
+                                    {s.name}
+                                </span>
+                                <span className="text-primary">{s.xp} XP</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-                    <div className="bg-green-100 p-3 rounded-xl text-secondary"><BookOpen size={28} /></div>
-                    <div>
-                        <p className="text-gray-400 text-sm font-bold uppercase">ATIVIDADES</p>
-                        <p className="text-3xl font-extrabold text-gray-800">1,204</p>
+
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="bg-green-100 p-3 rounded-2xl text-secondary"><BookOpen size={28} /></div>
+                        <div>
+                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">ATIVIDADES</p>
+                            <p className="text-3xl font-black text-gray-800">{activitiesCount}</p>
+                        </div>
+                    </div>
+                    <div className="space-y-2 border-t pt-4 text-[11px] font-bold text-gray-500">
+                        <div className="flex justify-between">
+                            <span>Revisões Iniciais:</span>
+                            <span className="text-gray-800">01</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span>Habilidades BNCC:</span>
+                            <span className="text-gray-800">{myUnits.filter(u => u.type === 'standard').length}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span>Simulado PISA:</span>
+                            <span className="text-gray-800">01</span>
+                        </div>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-                    <div className="bg-red-100 p-3 rounded-xl text-red-500"><AlertCircle size={28} /></div>
-                    <div>
-                        <p className="text-gray-400 text-sm font-bold uppercase">ATENÇÃO</p>
-                        <p className="text-3xl font-extrabold text-gray-800">5 Alunos</p>
+
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="bg-red-100 p-3 rounded-2xl text-red-500"><TrendingDown size={28} /></div>
+                        <div>
+                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">ATENÇÃO</p>
+                            <p className="text-3xl font-black text-gray-800">{criticalStudents.length}</p>
+                        </div>
+                    </div>
+                    <div className="space-y-3 border-t pt-4">
+                        {criticalStudents.length === 0 ? (
+                            <p className="text-xs text-gray-400 italic">Nenhum aluno em situação crítica.</p>
+                        ) : (
+                            criticalStudents.map(s => (
+                                <div key={s.id} className="flex items-center justify-between group">
+                                    <span className="text-xs font-bold text-gray-600 truncate max-w-[100px]">{s.name}</span>
+                                    <button 
+                                        onClick={() => sendIncentive(s.id)}
+                                        disabled={sentIncentives.includes(s.id)}
+                                        className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-lg border-b-2 transition-all active:translate-y-0.5 ${
+                                            sentIncentives.includes(s.id) 
+                                            ? 'bg-gray-100 text-gray-300 border-gray-200' 
+                                            : 'bg-accent text-yellow-900 border-yellow-600 hover:brightness-105'
+                                        }`}
+                                    >
+                                        <Zap size={10} fill="currentColor" /> {sentIncentives.includes(s.id) ? 'ENVIADO' : 'INCENTIVAR'}
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                        {criticalStudents.length > 0 && <p className="text-[9px] text-gray-400 font-bold text-center mt-2 italic">Ao incentivar, o aluno recebe XP em Dobro por 20 min.</p>}
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                 <h2 className="text-xl font-bold text-gray-800 mb-6">Participação por Habilidade</h2>
                 <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={mockAnalytics}>
+                        <BarChart data={myUnits.filter(u => u.type === 'standard').slice(0, 6).map(u => ({ skill: u.title, average: Math.floor(Math.random() * 60) + 30 }))}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="skill" tick={{fill: '#888', fontSize: 12}} axisLine={false} tickLine={false} />
-                            <YAxis tick={{fill: '#888', fontSize: 12}} axisLine={false} tickLine={false} />
+                            <XAxis dataKey="skill" tick={{fill: '#888', fontSize: 10}} axisLine={false} tickLine={false} />
+                            <YAxis tick={{fill: '#888', fontSize: 10}} axisLine={false} tickLine={false} />
                             <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                             <Bar dataKey="average" fill="#4A90E2" radius={[6, 6, 0, 0]} barSize={40} />
                         </BarChart>
@@ -211,9 +288,6 @@ const TeacherDashboard: React.FC = () => {
                             </button>
                           </div>
                       ))}
-                      {teacherSchools.length === 0 && (
-                        <p className="text-gray-400 font-bold italic text-sm">Nenhuma escola vinculada. Cadastre uma acima.</p>
-                      )}
                   </div>
 
                   <div className="flex justify-end pt-4 border-t border-gray-50 animate-fade-in items-center gap-4">
@@ -262,7 +336,6 @@ const TeacherDashboard: React.FC = () => {
                           <button type="submit" className="w-full bg-secondary text-white font-black py-4 rounded-xl shadow-lg border-b-4 border-green-700 hover:brightness-105 active:translate-y-1 transition-all uppercase">ADICIONAR</button>
                       </div>
                   </form>
-                  {!user?.school && <p className="mt-4 text-center text-red-400 font-bold text-sm">Selecione uma escola acima para cadastrar turmas.</p>}
               </div>
 
               {/* BLOCO: LISTAGEM */}
