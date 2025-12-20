@@ -75,6 +75,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('cq_unlocked_units_v2', JSON.stringify(unlockedUnitIds));
   }, [unlockedUnitIds]);
 
+  const addClassroom = (classroomData: Omit<Classroom, 'id'>) => {
+    const newClassroom: Classroom = {
+      ...classroomData,
+      id: Date.now().toString()
+    };
+    setActiveClassrooms(prev => {
+      // Evita duplicatas exatas
+      const exists = prev.find(c => 
+        c.school === newClassroom.school && 
+        c.grade === newClassroom.grade && 
+        c.classId === newClassroom.classId && 
+        c.shift === newClassroom.shift &&
+        c.teacherId === newClassroom.teacherId
+      );
+      if (exists) return prev;
+      return [...prev, newClassroom];
+    });
+  };
+
   const register = (userData: Partial<User>) => {
     const newUser: User = {
       id: Date.now().toString(),
@@ -163,7 +182,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const approveTeacher = (userId: string) => {
-    setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'active' as const, isVerified: true } : u));
+    setAllUsers(prev => {
+      const updatedList = prev.map(u => u.id === userId ? { ...u, status: 'active' as const, isVerified: true } : u);
+      const teacher = updatedList.find(u => u.id === userId);
+      
+      // Sincronização automática: Quando aprovar, cria a turma inicial se os dados existirem
+      if (teacher && teacher.school && teacher.grade && teacher.classId && teacher.shift) {
+        addClassroom({
+          school: teacher.school,
+          grade: teacher.grade,
+          classId: teacher.classId,
+          shift: teacher.shift,
+          teacherId: teacher.id
+        });
+      }
+      
+      return updatedList;
+    });
   };
 
   const deleteUser = (userId: string) => {
@@ -194,8 +229,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const removeSchoolFromTeacher = (schoolName: string) => {
     if (user && user.role === UserRole.TEACHER) {
       const updatedSchools = (user.teacherSchools || []).filter(s => s !== schoolName);
-      
-      // Se removermos a escola ativa, tentamos selecionar a primeira da lista restante ou deixar vazio
       let nextActiveSchool = user.school;
       if (user.school === schoolName) {
         nextActiveSchool = updatedSchools.length > 0 ? updatedSchools[0] : '';
@@ -206,14 +239,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('cq_current_user', JSON.stringify(updatedUser));
       setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
     }
-  };
-
-  const addClassroom = (classroomData: Omit<Classroom, 'id'>) => {
-    const newClassroom: Classroom = {
-      ...classroomData,
-      id: Date.now().toString()
-    };
-    setActiveClassrooms(prev => [...prev, newClassroom]);
   };
 
   const removeClassroom = (classroomId: string) => {
