@@ -23,17 +23,22 @@ const TeacherDashboard: React.FC = () => {
   const [showAddSchool, setShowAddSchool] = useState(false);
   const [newSchoolName, setNewSchoolName] = useState('');
   
-  // Incentivo
+  // Estado local para incentivos enviados
   const [sentIncentives, setSentIncentives] = useState<string[]>([]);
 
   // Estado local para seleção temporária da escola antes de "Salvar"
   const [tempSelectedSchool, setTempSelectedSchool] = useState<string>(user?.school || '');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Unidades específicas do ano do professor
   const myUnits = MOCK_UNITS.filter(u => u.grade === (user?.grade || 6));
-  const myClassrooms = activeClassrooms.filter(c => c.teacherId === user?.id);
   
-  // Filtro de alunos para o contexto do professor
+  // Turmas filtradas pela escola selecionada (tempSelectedSchool) para visualização imediata
+  const viewClassrooms = useMemo(() => {
+    return activeClassrooms.filter(c => c.teacherId === user?.id && c.school === tempSelectedSchool);
+  }, [activeClassrooms, user?.id, tempSelectedSchool]);
+
+  // Alunos da escola ATUAL (não temp) para a Visão Geral
   const myStudents = useMemo(() => {
     return allUsers.filter(u => 
         u.role === 'STUDENT' && 
@@ -43,23 +48,22 @@ const TeacherDashboard: React.FC = () => {
   }, [allUsers, user]);
 
   const criticalStudents = useMemo(() => {
-      // Simulação: alunos com menos de 200 XP ou XP estagnado
-      return myStudents.filter(s => (s.xp || 0) < 300).slice(0, 5);
+      // Alunos com menos de 200 XP são considerados em situação de atenção
+      return myStudents.filter(s => (s.xp || 0) < 200).slice(0, 5);
   }, [myStudents]);
 
-  // Contagem de atividades
-  const activitiesCount = useMemo(() => {
-      return myUnits.length; // Soma revisões, habilidades e PISA
+  // Soma de todas as atividades (Revisão + BNCC + PISA) para o ano do professor
+  const totalActivities = useMemo(() => {
+      return myUnits.length;
   }, [myUnits]);
 
-  // O professor só vê escolas vinculadas a ele
   const teacherSchools = user?.teacherSchools || (user?.school ? [user.school] : []);
 
   const handleAddClassroom = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !tempSelectedSchool) return;
     addClassroom({
-      school: user.school || '',
+      school: tempSelectedSchool,
       grade: newGrade,
       classId: newClassId,
       shift: newShift,
@@ -99,7 +103,7 @@ const TeacherDashboard: React.FC = () => {
 
   const sendIncentive = (studentId: string) => {
       setSentIncentives(prev => [...prev, studentId]);
-      // Aqui integraria com a lógica de XP em Dobro se houvesse backend
+      // Simulação de envio de benefício
   };
 
   return (
@@ -117,6 +121,7 @@ const TeacherDashboard: React.FC = () => {
       {currentTab === 'overview' && (
           <div className="animate-fade-in space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* 4.1 Ranking de Alunos */}
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                     <div className="flex items-center gap-4 mb-4">
                         <div className="bg-blue-100 p-3 rounded-2xl text-primary"><Users size={28} /></div>
@@ -125,26 +130,28 @@ const TeacherDashboard: React.FC = () => {
                             <p className="text-3xl font-black text-gray-800">{myStudents.length}</p>
                         </div>
                     </div>
-                    <div className="space-y-2 border-t pt-4">
-                        <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Top 3 Ranking</p>
-                        {myStudents.slice(0, 3).map((s, idx) => (
-                            <div key={idx} className="flex justify-between items-center text-sm font-bold">
-                                <span className="text-gray-600 truncate max-w-[120px] flex items-center gap-1">
-                                    <Trophy size={12} className={idx === 0 ? 'text-yellow-500' : idx === 1 ? 'text-gray-400' : 'text-amber-600'} />
+                    <div className="space-y-2 border-t pt-4 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                        <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Ranking de Atividade</p>
+                        {myStudents.map((s, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-xs font-bold mb-1">
+                                <span className="text-gray-600 truncate flex items-center gap-2">
+                                    <span className="w-4 text-gray-400">{idx + 1}º</span>
                                     {s.name}
                                 </span>
                                 <span className="text-primary">{s.xp} XP</span>
                             </div>
                         ))}
+                        {myStudents.length === 0 && <p className="text-xs text-gray-400 italic">Nenhum aluno cadastrado.</p>}
                     </div>
                 </div>
 
+                {/* 4.2 Soma de Atividades */}
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                     <div className="flex items-center gap-4 mb-4">
                         <div className="bg-green-100 p-3 rounded-2xl text-secondary"><BookOpen size={28} /></div>
                         <div>
                             <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">ATIVIDADES</p>
-                            <p className="text-3xl font-black text-gray-800">{activitiesCount}</p>
+                            <p className="text-3xl font-black text-gray-800">{totalActivities}</p>
                         </div>
                     </div>
                     <div className="space-y-2 border-t pt-4 text-[11px] font-bold text-gray-500">
@@ -157,51 +164,49 @@ const TeacherDashboard: React.FC = () => {
                             <span className="text-gray-800">{myUnits.filter(u => u.type === 'standard').length}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span>Simulado PISA:</span>
+                            <span>Simulado PISA 2025:</span>
                             <span className="text-gray-800">01</span>
                         </div>
                     </div>
                 </div>
 
+                {/* 4.3 Alunos em Situação Crítica / Incentivo */}
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                     <div className="flex items-center gap-4 mb-4">
-                        <div className="bg-red-100 p-3 rounded-2xl text-red-500"><TrendingDown size={28} /></div>
+                        <div className="bg-red-100 p-3 rounded-2xl text-red-500"><AlertCircle size={28} /></div>
                         <div>
                             <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">ATENÇÃO</p>
                             <p className="text-3xl font-black text-gray-800">{criticalStudents.length}</p>
                         </div>
                     </div>
                     <div className="space-y-3 border-t pt-4">
-                        {criticalStudents.length === 0 ? (
-                            <p className="text-xs text-gray-400 italic">Nenhum aluno em situação crítica.</p>
-                        ) : (
-                            criticalStudents.map(s => (
-                                <div key={s.id} className="flex items-center justify-between group">
-                                    <span className="text-xs font-bold text-gray-600 truncate max-w-[100px]">{s.name}</span>
-                                    <button 
-                                        onClick={() => sendIncentive(s.id)}
-                                        disabled={sentIncentives.includes(s.id)}
-                                        className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-lg border-b-2 transition-all active:translate-y-0.5 ${
-                                            sentIncentives.includes(s.id) 
-                                            ? 'bg-gray-100 text-gray-300 border-gray-200' 
-                                            : 'bg-accent text-yellow-900 border-yellow-600 hover:brightness-105'
-                                        }`}
-                                    >
-                                        <Zap size={10} fill="currentColor" /> {sentIncentives.includes(s.id) ? 'ENVIADO' : 'INCENTIVAR'}
-                                    </button>
-                                </div>
-                            ))
-                        )}
-                        {criticalStudents.length > 0 && <p className="text-[9px] text-gray-400 font-bold text-center mt-2 italic">Ao incentivar, o aluno recebe XP em Dobro por 20 min.</p>}
+                        <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Precisa de Estímulo</p>
+                        {criticalStudents.map(s => (
+                            <div key={s.id} className="flex items-center justify-between group bg-gray-50 p-2 rounded-xl border border-gray-100">
+                                <span className="text-[11px] font-bold text-gray-600 truncate max-w-[100px]">{s.name}</span>
+                                <button 
+                                    onClick={() => sendIncentive(s.id)}
+                                    disabled={sentIncentives.includes(s.id)}
+                                    className={`flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-lg border-b-2 transition-all active:translate-y-0.5 ${
+                                        sentIncentives.includes(s.id) 
+                                        ? 'bg-gray-200 text-gray-400 border-gray-300' 
+                                        : 'bg-accent text-yellow-900 border-yellow-600 hover:brightness-105'
+                                    }`}
+                                >
+                                    <Zap size={10} fill="currentColor" /> {sentIncentives.includes(s.id) ? 'ENVIADO' : 'XP DOBRO'}
+                                </button>
+                            </div>
+                        ))}
+                        {criticalStudents.length === 0 && <p className="text-xs text-gray-400 italic">Todos os alunos estão em dia!</p>}
                     </div>
                 </div>
             </div>
 
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                <h2 className="text-xl font-bold text-gray-800 mb-6">Participação por Habilidade</h2>
+                <h2 className="text-xl font-bold text-gray-800 mb-6">Desempenho por Habilidade (Média da Turma)</h2>
                 <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={myUnits.filter(u => u.type === 'standard').slice(0, 6).map(u => ({ skill: u.title, average: Math.floor(Math.random() * 60) + 30 }))}>
+                        <BarChart data={myUnits.filter(u => u.type === 'standard').slice(0, 6).map(u => ({ skill: u.title, average: Math.floor(Math.random() * 40) + 40 }))}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
                             <XAxis dataKey="skill" tick={{fill: '#888', fontSize: 10}} axisLine={false} tickLine={false} />
                             <YAxis tick={{fill: '#888', fontSize: 10}} axisLine={false} tickLine={false} />
@@ -254,7 +259,7 @@ const TeacherDashboard: React.FC = () => {
                          <Building className="text-accent" /> Gerenciar Rede Escolar
                       </h2>
                       <button onClick={() => setShowAddSchool(!showAddSchool)} className="text-primary font-black text-sm flex items-center gap-1 hover:underline">
-                         <PlusCircle size={16} /> Nova Escola
+                         <PlusCircle size={16} /> Nova Unidade
                       </button>
                   </div>
 
@@ -290,9 +295,9 @@ const TeacherDashboard: React.FC = () => {
                       ))}
                   </div>
 
-                  <div className="flex justify-end pt-4 border-t border-gray-50 animate-fade-in items-center gap-4">
+                  <div className="flex justify-end pt-4 border-t border-gray-50 items-center gap-4">
                       {tempSelectedSchool !== user?.school && (
-                        <p className="text-xs font-bold text-primary animate-pulse italic">Escola alterada! Clique em salvar para confirmar.</p>
+                        <p className="text-[10px] font-black text-primary animate-pulse uppercase tracking-wider">Unidade Alterada! Salve para confirmar.</p>
                       )}
                       <button 
                          onClick={handleSaveSchoolSwitch}
@@ -309,9 +314,9 @@ const TeacherDashboard: React.FC = () => {
               </div>
 
               {/* BLOCO: ADICIONAR TURMA */}
-              <div className={`bg-white p-8 rounded-3xl shadow-sm border border-gray-100 transition-opacity ${!user?.school ? 'opacity-50 pointer-events-none' : ''}`}>
+              <div className={`bg-white p-8 rounded-3xl shadow-sm border border-gray-100 transition-opacity ${!tempSelectedSchool ? 'opacity-50 pointer-events-none' : ''}`}>
                   <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                    <Plus className="text-primary" /> Adicionar Turma em <span className="text-primary">{user?.school || '...'}</span>
+                    <Plus className="text-primary" /> Nova Turma em <span className="text-primary">{tempSelectedSchool || '...'}</span>
                   </h2>
                   <form onSubmit={handleAddClassroom} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="space-y-1">
@@ -333,16 +338,16 @@ const TeacherDashboard: React.FC = () => {
                           </select>
                       </div>
                       <div className="flex items-end">
-                          <button type="submit" className="w-full bg-secondary text-white font-black py-4 rounded-xl shadow-lg border-b-4 border-green-700 hover:brightness-105 active:translate-y-1 transition-all uppercase">ADICIONAR</button>
+                          <button type="submit" className="w-full bg-secondary text-white font-black py-4 rounded-xl shadow-lg border-b-4 border-green-700 hover:brightness-105 active:translate-y-1 transition-all uppercase">CRIAR TURMA</button>
                       </div>
                   </form>
               </div>
 
-              {/* BLOCO: LISTAGEM */}
+              {/* BLOCO: LISTAGEM DINÂMICA (Baseada na tempSelectedSchool) */}
               <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
-                  <h2 className="text-xl font-bold text-gray-800 mb-6 uppercase tracking-widest text-xs opacity-50">Suas Turmas Ativas ({user?.school || 'Nenhuma'})</h2>
+                  <h2 className="text-xl font-bold text-gray-800 mb-6 uppercase tracking-widest text-[10px] opacity-60">Turmas na Unidade: {tempSelectedSchool || 'Nenhuma'}</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {myClassrooms.filter(c => c.school === user?.school).map(room => (
+                      {viewClassrooms.map(room => (
                           <div key={room.id} className="p-6 rounded-2xl bg-gray-50 border-2 border-gray-100 flex justify-between items-center group hover:border-primary/20 transition-all">
                               <div className="flex items-center gap-4">
                                   <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-primary">
@@ -358,9 +363,9 @@ const TeacherDashboard: React.FC = () => {
                               </button>
                           </div>
                       ))}
-                      {myClassrooms.filter(c => c.school === user?.school).length === 0 && (
+                      {viewClassrooms.length === 0 && (
                           <div className="col-span-full py-12 text-center text-gray-300 font-bold">
-                              Nenhuma turma encontrada nesta unidade ativa.
+                              {tempSelectedSchool ? 'Nenhuma turma cadastrada nesta unidade.' : 'Selecione uma escola acima para visualizar.'}
                           </div>
                       )}
                   </div>

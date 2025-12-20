@@ -3,8 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/Avatar';
 import { AvatarConfig, UserRole } from '../types';
-import { BRAZIL_STATES, BRAZIL_CITIES } from '../constants';
-import { MapPin, Save, User as UserIcon, Sparkles } from 'lucide-react';
+import { Save, Sparkles } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const { user, updateAvatar } = useAuth();
@@ -16,9 +15,6 @@ const Profile: React.FC = () => {
       hairStyle: 'short',
       headwear: 'none'
   });
-
-  const [state, setState] = useState(user?.state || '');
-  const [city, setCity] = useState(user?.city || '');
 
   const handleSave = () => {
       updateAvatar(config);
@@ -48,7 +44,6 @@ const Profile: React.FC = () => {
 
         <div className="lg:col-span-2">
             <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 space-y-10">
-                {/* Etnias e Tons */}
                 <div>
                     <h3 className="text-sm font-black text-gray-400 uppercase mb-4 tracking-widest">Pele e Cabelo</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -71,7 +66,6 @@ const Profile: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Estilo de Adulto / Professor */}
                 <div>
                     <h3 className="text-sm font-black text-gray-400 uppercase mb-4 tracking-widest">Estilo e Caracterização</h3>
                     <div className="space-y-6">
@@ -98,17 +92,6 @@ const Profile: React.FC = () => {
                                 </div>
                             </div>
                         )}
-
-                        <div>
-                            <label className="block text-gray-600 font-bold mb-3 text-xs">Acessórios de Cabeça / Culturais</label>
-                            <div className="flex gap-2 flex-wrap">
-                                {['none', 'cocar', 'turban', 'strawHat'].map((h) => (
-                                    <button key={h} onClick={() => setConfig({...config, headwear: h as any})} className={`px-4 py-2 rounded-xl border-2 font-black text-xs ${config.headwear === h ? 'border-accent bg-yellow-50 text-yellow-700' : 'border-gray-100 text-gray-400'}`}>
-                                        {h === 'none' ? 'NENHUM' : h === 'cocar' ? 'COCAR' : h === 'turban' ? 'TURBANTE' : 'PALHA'}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
                     </div>
                 </div>
 
