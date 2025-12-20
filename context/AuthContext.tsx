@@ -24,9 +24,10 @@ interface AuthContextType {
   deleteUser: (userId: string) => void;
   addSchool: (schoolName: string) => void;
 
-  // Teacher Actions for Classrooms
+  // Teacher Actions
   addClassroom: (classroom: Omit<Classroom, 'id'>) => void;
   removeClassroom: (classroomId: string) => void;
+  switchActiveSchool: (schoolName: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -81,6 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role: userData.role || UserRole.STUDENT,
       status: userData.role === UserRole.TEACHER ? 'pending' : 'active',
       school: userData.school,
+      teacherSchools: userData.role === UserRole.TEACHER && userData.school ? [userData.school] : [],
       grade: userData.grade,
       classId: userData.classId,
       shift: userData.shift,
@@ -94,8 +96,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setAllUsers(prev => [...prev, newUser]);
     
-    // SÓ faz auto-login se for ALUNO. 
-    // Professores (pendentes) devem aguardar na tela de login.
     if (newUser.role === UserRole.STUDENT) {
         setUser(newUser);
         localStorage.setItem('cq_current_user', JSON.stringify(newUser));
@@ -121,10 +121,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const foundUser = allUsers.find(u => u.email === email && u.role === role);
-    if (!foundUser) return { success: false, message: 'Usuário não encontrado. Faça o cadastro.' };
+    if (!foundUser) return { success: false, message: 'Usuário não encontrado.' };
     
     if (foundUser.role === UserRole.TEACHER && foundUser.status === 'pending') {
-      return { success: false, message: 'Seu cadastro ainda está em análise pelo administrador.' };
+      return { success: false, message: 'Cadastro em análise.' };
     }
 
     setUser(foundUser);
@@ -171,6 +171,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addSchool = (schoolName: string) => {
     if (!schoolsList.includes(schoolName)) setSchoolsList(prev => [...prev, schoolName]);
+    
+    // Vincula a nova escola à conta do professor logado
+    if (user && user.role === UserRole.TEACHER) {
+        const updatedSchools = Array.from(new Set([...(user.teacherSchools || []), schoolName]));
+        const updatedUser = { ...user, teacherSchools: updatedSchools, school: schoolName };
+        setUser(updatedUser);
+        localStorage.setItem('cq_current_user', JSON.stringify(updatedUser));
+        setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+    }
+  };
+
+  const switchActiveSchool = (schoolName: string) => {
+    if (user && user.role === UserRole.TEACHER) {
+      const updatedUser = { ...user, school: schoolName };
+      setUser(updatedUser);
+      localStorage.setItem('cq_current_user', JSON.stringify(updatedUser));
+      setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+    }
   };
 
   const addClassroom = (classroomData: Omit<Classroom, 'id'>) => {
@@ -191,7 +209,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login, register, logout, updateAvatar, addXp,
         unlockedUnitIds, toggleUnitLock,
         approveTeacher, deleteUser, addSchool,
-        addClassroom, removeClassroom
+        addClassroom, removeClassroom, switchActiveSchool
     }}>
       {children}
     </AuthContext.Provider>

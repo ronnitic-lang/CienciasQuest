@@ -40,6 +40,7 @@ export interface User {
   state?: string;
   city?: string;
   school?: string;
+  teacherSchools?: string[]; // Lista de escolas vinculadas a este professor
   grade?: number;
   classId?: string;
   shift?: string;

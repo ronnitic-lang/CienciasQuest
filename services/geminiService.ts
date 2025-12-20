@@ -1,10 +1,7 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, QuestionType } from "../types";
 import { PISA_EXAM_6, PISA_EXAM_7, PISA_EXAM_8 } from "../constants/pisaQuestions";
-
-const cleanJson = (text: string) => {
-  return text.replace(/```json/g, '').replace(/```/g, '').trim();
-};
 
 export const generateQuestions = async (topic: string, grade: number, isExam: boolean = false): Promise<Question[]> => {
   if (isExam) {
@@ -20,25 +17,9 @@ export const generateQuestions = async (topic: string, grade: number, isExam: bo
     }));
   }
 
-  // O Vite substituirá process.env.API_KEY pelo valor real durante o build
-  const apiKey = process.env.API_KEY;
-
-  if (!apiKey) {
-    console.warn("API_KEY não encontrada. Usando questões de demonstração.");
-    return [
-      {
-        id: 'mock-1',
-        text: 'Qual é a unidade básica estrutural de todos os seres vivos?',
-        type: QuestionType.MULTIPLE_CHOICE,
-        options: ['Átomo', 'Célula', 'Órgão', 'Tecido'],
-        correctAnswer: 1,
-        explanation: 'A célula é a unidade fundamental da vida, capaz de realizar todas as funções vitais.'
-      }
-    ];
-  }
-
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    // Standard Initialization: Always use process.env.API_KEY directly
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `Como um especialista em pedagogia de Ciências, crie 5 questões de múltipla escolha sobre ${topic} para alunos do ${grade}º ano. Siga rigorosamente a BNCC e retorne em formato JSON.`;
 
     const response = await ai.models.generateContent({
@@ -62,7 +43,10 @@ export const generateQuestions = async (topic: string, grade: number, isExam: bo
       }
     });
 
-    const data = JSON.parse(cleanJson(response.text || '[]'));
+    // Extracting Text Output: Using .text property directly as per guidelines
+    const jsonStr = response.text?.trim() || '[]';
+    const data = JSON.parse(jsonStr);
+    
     return data.map((q: any, i: number) => ({
       ...q,
       id: `gen-${Date.now()}-${i}`,
@@ -70,6 +54,16 @@ export const generateQuestions = async (topic: string, grade: number, isExam: bo
     }));
   } catch (error) {
     console.error("Erro ao gerar questões:", error);
-    return [];
+    // Fallback in case of API failure
+    return [
+      {
+        id: 'mock-1',
+        text: 'Qual é a unidade básica estrutural de todos os seres vivos?',
+        type: QuestionType.MULTIPLE_CHOICE,
+        options: ['Átomo', 'Célula', 'Órgão', 'Tecido'],
+        correctAnswer: 1,
+        explanation: 'A célula é a unidade fundamental da vida, capaz de realizar todas as funções vitais.'
+      }
+    ];
   }
 };
