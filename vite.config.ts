@@ -5,20 +5,18 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY || '')
   },
   build: {
     outDir: 'dist',
     sourcemap: false,
     minify: 'esbuild',
-    chunkSizeWarningLimit: 1200, // Aumentado para silenciar avisos de bibliotecas grandes
+    chunkSizeWarningLimit: 1600,
     rollupOptions: {
-      input: './index.html',
       output: {
         manualChunks: {
-          // Solução de Code Splitting: Separa libs pesadas em arquivos próprios
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          charts: ['recharts'],
+          ui: ['lucide-react', 'recharts'],
           ai: ['@google/genai']
         }
       }
