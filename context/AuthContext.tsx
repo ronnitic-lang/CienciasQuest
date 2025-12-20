@@ -81,7 +81,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: Date.now().toString()
     };
     setActiveClassrooms(prev => {
-      // Evita duplicatas exatas
       const exists = prev.find(c => 
         c.school === newClassroom.school && 
         c.grade === newClassroom.grade && 
@@ -186,14 +185,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedList = prev.map(u => u.id === userId ? { ...u, status: 'active' as const, isVerified: true } : u);
       const teacher = updatedList.find(u => u.id === userId);
       
-      // Sincronização automática: Quando aprovar, cria a turma inicial se os dados existirem
       if (teacher && teacher.school && teacher.grade && teacher.classId && teacher.shift) {
-        addClassroom({
+        // Criar a sala de aula imediatamente para que os alunos a encontrem
+        const newRoom: Classroom = {
+          id: `room-${Date.now()}`,
           school: teacher.school,
           grade: teacher.grade,
           classId: teacher.classId,
           shift: teacher.shift,
           teacherId: teacher.id
+        };
+        
+        setActiveClassrooms(prevRooms => {
+          const exists = prevRooms.find(r => 
+            r.school === newRoom.school && 
+            r.grade === newRoom.grade && 
+            r.classId === newRoom.classId && 
+            r.shift === newRoom.shift
+          );
+          return exists ? prevRooms : [...prevRooms, newRoom];
         });
       }
       

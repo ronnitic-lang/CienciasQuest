@@ -19,10 +19,16 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!user) return <div className="min-h-screen bg-light">{children}</div>;
 
   const NavItem = ({ to, icon: Icon, label, tab }: any) => {
-    // Para o professor, as rotas apontam para o dashboard mas com tabs diferentes
-    const isActive = tab 
+    // Verifica se o caminho base é igual
+    const isPathActive = location.pathname === to;
+    
+    // Se houver tab (caso do dashboard do professor), verifica se o parâmetro de busca bate
+    // ou se não há parâmetro e a tab é a padrão (overview)
+    const isTabActive = tab 
         ? location.search === `?tab=${tab}` || (location.search === '' && tab === 'overview')
-        : location.pathname === to;
+        : location.search === '';
+
+    const isActive = isPathActive && isTabActive;
 
     return (
       <Link

@@ -2,11 +2,21 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, QuestionType } from "../types";
 import { PISA_EXAM_6, PISA_EXAM_7, PISA_EXAM_8 } from "../constants/pisaQuestions";
+import { REVISION_5TH_GRADE_BANK } from "../constants/revisionQuestions";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export const generateQuestions = async (topic: string, grade: number, isExam: boolean = false): Promise<Question[]> => {
-  if (isExam) {
+export const generateQuestions = async (topic: string, grade: number, type: 'review' | 'standard' | 'exam'): Promise<Question[]> => {
+  // Caso seja a Revisão Inicial do 6º Ano (Habilidades do 5º Ano)
+  if (type === 'review' && grade === 6) {
+    return REVISION_5TH_GRADE_BANK.map((q, i) => ({
+      ...q,
+      id: `rev-5g-${i}`
+    }));
+  }
+
+  // Caso seja Simulado PISA (Exames)
+  if (type === 'exam') {
     let bank: Omit<Question, 'id'>[] = [];
     if (grade === 6) bank = PISA_EXAM_6;
     else if (grade === 7) bank = PISA_EXAM_7;
@@ -19,6 +29,7 @@ export const generateQuestions = async (topic: string, grade: number, isExam: bo
     }));
   }
 
+  // Caso padrão: Gerar via IA Gemini
   try {
     const prompt = `Como um especialista em pedagogia de Ciências, crie 5 questões de múltipla escolha sobre ${topic} para alunos do ${grade}º ano. Siga rigorosamente a BNCC e retorne em formato JSON.`;
 

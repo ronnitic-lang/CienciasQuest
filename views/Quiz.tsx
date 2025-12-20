@@ -43,13 +43,14 @@ const Quiz: React.FC = () => {
 
   const unit = MOCK_UNITS.find(u => u.id === unitId);
   const isPisa = unit?.type === 'exam';
+  const isReview = unit?.type === 'review';
 
   useEffect(() => {
     const loadQuiz = async () => {
       if (unit) {
         setLoading(true);
-        // Busca questões (IA ou Banco PISA)
-        const rawQuestions = await generateQuestions(unit.description, unit.grade, isPisa);
+        // Busca questões baseadas no tipo (IA, Banco PISA ou Banco de Revisão)
+        const rawQuestions = await generateQuestions(unit.description, unit.grade, unit.type || 'standard');
         
         // Aplica embaralhamento de alternativas para cada questão (Anti-Cola)
         const shuffled = rawQuestions.map(q => shuffleOptions(q));
@@ -59,7 +60,7 @@ const Quiz: React.FC = () => {
       }
     };
     loadQuiz();
-  }, [unit, isPisa]);
+  }, [unit]);
 
   const handleOptionClick = (idx: number) => {
     if (isAnswered) return;
@@ -90,9 +91,11 @@ const Quiz: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
         <Mascot size={200} />
-        <p className="text-xl font-black text-gray-700">{isPisa ? 'Carregando Simulado PISA 2025...' : 'A Coruja está preparando suas questões...'}</p>
+        <p className="text-xl font-black text-gray-700">
+          {isPisa ? 'Carregando Simulado PISA 2025...' : isReview ? 'Preparando revisão do 5º Ano...' : 'A Coruja está preparando suas questões...'}
+        </p>
         <p className="text-sm text-gray-400 font-bold max-w-xs text-center">
-            {isPisa ? 'Prepare-se! Este teste avalia habilidades complexas de interpretação científica.' : 'Usando IA para gerar conteúdo único baseado na BNCC.'}
+            {isPisa ? 'Prepare-se! Este teste avalia habilidades complexas de interpretação científica.' : isReview ? 'Vamos relembrar os conceitos fundamentais para começar o 6º ano com tudo!' : 'Usando IA para gerar conteúdo único baseado na BNCC.'}
         </p>
       </div>
     );
@@ -107,7 +110,7 @@ const Quiz: React.FC = () => {
             </div>
             
             <h2 className="text-4xl font-black text-gray-800">
-                {isPisa ? 'Simulado PISA Concluído!' : 'Missão Cumprida!'}
+                {isPisa ? 'Simulado PISA Concluído!' : isReview ? 'Revisão Finalizada!' : 'Missão Cumprida!'}
             </h2>
             
             <div className="bg-white p-8 rounded-3xl shadow-xl border-b-8 border-gray-100 w-full max-w-md space-y-4">
@@ -152,7 +155,11 @@ const Quiz: React.FC = () => {
       </div>
 
       <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 mb-8 animate-fade-in">
-        {isPisa && <span className="inline-block bg-accent/20 text-yellow-700 px-3 py-1 rounded-lg text-[10px] font-black mb-4 uppercase tracking-widest">Questão PISA • {currentQ.bnccCode}</span>}
+        <div className="flex flex-wrap gap-2 mb-4">
+            {isPisa && <span className="inline-block bg-accent/20 text-yellow-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">Simulado PISA</span>}
+            {isReview && <span className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">Revisão Inicial</span>}
+            {currentQ.bnccCode && <span className="inline-block bg-gray-100 text-gray-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">{currentQ.bnccCode}</span>}
+        </div>
         <h2 className="text-xl md:text-2xl font-black text-gray-800 mb-8 leading-tight">{currentQ.text}</h2>
         
         <div className="space-y-4">
