@@ -28,6 +28,7 @@ interface AuthContextType {
   addClassroom: (classroom: Omit<Classroom, 'id'>) => void;
   removeClassroom: (classroomId: string) => void;
   switchActiveSchool: (schoolName: string) => void;
+  removeSchoolFromTeacher: (schoolName: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -172,7 +173,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addSchool = (schoolName: string) => {
     if (!schoolsList.includes(schoolName)) setSchoolsList(prev => [...prev, schoolName]);
     
-    // Vincula a nova escola à conta do professor logado
     if (user && user.role === UserRole.TEACHER) {
         const updatedSchools = Array.from(new Set([...(user.teacherSchools || []), schoolName]));
         const updatedUser = { ...user, teacherSchools: updatedSchools, school: schoolName };
@@ -185,6 +185,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const switchActiveSchool = (schoolName: string) => {
     if (user && user.role === UserRole.TEACHER) {
       const updatedUser = { ...user, school: schoolName };
+      setUser(updatedUser);
+      localStorage.setItem('cq_current_user', JSON.stringify(updatedUser));
+      setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+    }
+  };
+
+  const removeSchoolFromTeacher = (schoolName: string) => {
+    if (user && user.role === UserRole.TEACHER) {
+      const updatedSchools = (user.teacherSchools || []).filter(s => s !== schoolName);
+      
+      // Se removermos a escola ativa, tentamos selecionar a primeira da lista restante ou deixar vazio
+      let nextActiveSchool = user.school;
+      if (user.school === schoolName) {
+        nextActiveSchool = updatedSchools.length > 0 ? updatedSchools[0] : '';
+      }
+
+      const updatedUser = { ...user, teacherSchools: updatedSchools, school: nextActiveSchool };
       setUser(updatedUser);
       localStorage.setItem('cq_current_user', JSON.stringify(updatedUser));
       setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
@@ -209,7 +226,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login, register, logout, updateAvatar, addXp,
         unlockedUnitIds, toggleUnitLock,
         approveTeacher, deleteUser, addSchool,
-        addClassroom, removeClassroom, switchActiveSchool
+        addClassroom, removeClassroom, switchActiveSchool, removeSchoolFromTeacher
     }}>
       {children}
     </AuthContext.Provider>

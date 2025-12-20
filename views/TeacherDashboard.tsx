@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, BookOpen, AlertCircle, Lock, Unlock, Plus, Trash2, Building, Check, Save, PlusCircle, GraduationCap } from 'lucide-react';
+import { Users, BookOpen, AlertCircle, Lock, Unlock, Plus, Trash2, Building, Check, Save, PlusCircle, GraduationCap, X } from 'lucide-react';
 import { MOCK_UNITS, CLASSES, SHIFTS } from '../constants';
 import { useAuth } from '../context/AuthContext';
 
@@ -14,9 +14,13 @@ const mockAnalytics = [
 ];
 
 const TeacherDashboard: React.FC = () => {
-  const { user, unlockedUnitIds, toggleUnitLock, activeClassrooms, addClassroom, removeClassroom, addSchool, switchActiveSchool } = useAuth();
-  const location = useLocation();
+  const { 
+    user, unlockedUnitIds, toggleUnitLock, activeClassrooms, 
+    addClassroom, removeClassroom, addSchool, switchActiveSchool, 
+    removeSchoolFromTeacher 
+  } = useAuth();
   
+  const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const currentTab = (searchParams.get('tab') as 'overview' | 'curriculum' | 'classrooms') || 'overview';
 
@@ -58,13 +62,22 @@ const TeacherDashboard: React.FC = () => {
     }
   };
 
+  const handleRemoveSchool = (e: React.MouseEvent, schoolName: string) => {
+    e.stopPropagation(); // Impede de selecionar a escola ao tentar remover
+    if (confirm(`Deseja remover a escola "${schoolName}" da sua rede?`)) {
+      removeSchoolFromTeacher(schoolName);
+      if (tempSelectedSchool === schoolName) {
+        setTempSelectedSchool('');
+      }
+    }
+  };
+
   const handleSaveSchoolSwitch = () => {
     if (tempSelectedSchool && tempSelectedSchool !== user?.school) {
       setIsSaving(true);
       setTimeout(() => {
         switchActiveSchool(tempSelectedSchool);
         setIsSaving(false);
-        alert("Escola ativa atualizada!");
       }, 500);
     }
   };
@@ -77,7 +90,7 @@ const TeacherDashboard: React.FC = () => {
           </h1>
           <div className="flex items-center gap-2 mt-1">
              <Building size={16} className="text-primary" />
-             <p className="text-gray-500 font-bold">{user?.school} • {user?.grade}º Ano</p>
+             <p className="text-gray-500 font-bold">{user?.school || 'Nenhuma escola selecionada'} • {user?.grade || 'N/A'}º Ano</p>
           </div>
       </div>
 
@@ -177,38 +190,54 @@ const TeacherDashboard: React.FC = () => {
 
                   <div className="flex flex-wrap gap-2 mb-8">
                       {teacherSchools.map(s => (
-                          <button 
-                             key={s} 
-                             onClick={() => setTempSelectedSchool(s)}
-                             className={`px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 border-2 ${
-                                 tempSelectedSchool === s 
-                                 ? 'bg-blue-50 border-primary text-primary shadow-sm' 
-                                 : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200'
-                             }`}
-                          >
-                             {s}
-                             {user?.school === s && <Check size={14} className="text-secondary" />}
-                          </button>
+                          <div key={s} className="relative group/chip">
+                            <button 
+                               onClick={() => setTempSelectedSchool(s)}
+                               className={`pl-4 pr-10 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 border-2 ${
+                                   tempSelectedSchool === s 
+                                   ? 'bg-blue-50 border-primary text-primary shadow-sm' 
+                                   : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200'
+                               }`}
+                            >
+                               {s}
+                               {user?.school === s && <Check size={14} className="text-secondary" />}
+                            </button>
+                            <button 
+                              onClick={(e) => handleRemoveSchool(e, s)}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover/chip:opacity-100"
+                              title="Remover escola"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
                       ))}
+                      {teacherSchools.length === 0 && (
+                        <p className="text-gray-400 font-bold italic text-sm">Nenhuma escola vinculada. Cadastre uma acima.</p>
+                      )}
                   </div>
 
-                  {tempSelectedSchool !== user?.school && (
-                      <div className="flex justify-end pt-4 border-t border-gray-50 animate-fade-in">
-                          <button 
-                             onClick={handleSaveSchoolSwitch}
-                             disabled={isSaving}
-                             className="bg-primary text-white font-black px-8 py-3 rounded-xl shadow-xl border-b-4 border-blue-700 flex items-center gap-2 transition-all active:translate-y-1"
-                          >
-                             {isSaving ? 'SALVANDO...' : <><Save size={20} /> SALVAR</>}
-                          </button>
-                      </div>
-                  )}
+                  <div className="flex justify-end pt-4 border-t border-gray-50 animate-fade-in items-center gap-4">
+                      {tempSelectedSchool !== user?.school && (
+                        <p className="text-xs font-bold text-primary animate-pulse italic">Escola alterada! Clique em salvar para confirmar.</p>
+                      )}
+                      <button 
+                         onClick={handleSaveSchoolSwitch}
+                         disabled={isSaving || !tempSelectedSchool || tempSelectedSchool === user?.school}
+                         className={`font-black px-8 py-3 rounded-xl shadow-xl border-b-4 flex items-center gap-2 transition-all active:translate-y-1 ${
+                            tempSelectedSchool === user?.school || !tempSelectedSchool
+                            ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed shadow-none border-b-0'
+                            : 'bg-primary text-white border-blue-700 hover:brightness-105'
+                         }`}
+                      >
+                         {isSaving ? 'SALVANDO...' : <><Save size={20} /> SALVAR ALTERAÇÕES</>}
+                      </button>
+                  </div>
               </div>
 
               {/* BLOCO: ADICIONAR TURMA */}
-              <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+              <div className={`bg-white p-8 rounded-3xl shadow-sm border border-gray-100 transition-opacity ${!user?.school ? 'opacity-50 pointer-events-none' : ''}`}>
                   <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                    <Plus className="text-primary" /> Adicionar Turma em <span className="text-primary">{user?.school}</span>
+                    <Plus className="text-primary" /> Adicionar Turma em <span className="text-primary">{user?.school || '...'}</span>
                   </h2>
                   <form onSubmit={handleAddClassroom} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="space-y-1">
@@ -233,11 +262,12 @@ const TeacherDashboard: React.FC = () => {
                           <button type="submit" className="w-full bg-secondary text-white font-black py-4 rounded-xl shadow-lg border-b-4 border-green-700 hover:brightness-105 active:translate-y-1 transition-all uppercase">ADICIONAR</button>
                       </div>
                   </form>
+                  {!user?.school && <p className="mt-4 text-center text-red-400 font-bold text-sm">Selecione uma escola acima para cadastrar turmas.</p>}
               </div>
 
               {/* BLOCO: LISTAGEM */}
               <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
-                  <h2 className="text-xl font-bold text-gray-800 mb-6 uppercase tracking-widest text-xs opacity-50">Suas Turmas Ativas ({user?.school})</h2>
+                  <h2 className="text-xl font-bold text-gray-800 mb-6 uppercase tracking-widest text-xs opacity-50">Suas Turmas Ativas ({user?.school || 'Nenhuma'})</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {myClassrooms.filter(c => c.school === user?.school).map(room => (
                           <div key={room.id} className="p-6 rounded-2xl bg-gray-50 border-2 border-gray-100 flex justify-between items-center group hover:border-primary/20 transition-all">
@@ -257,7 +287,7 @@ const TeacherDashboard: React.FC = () => {
                       ))}
                       {myClassrooms.filter(c => c.school === user?.school).length === 0 && (
                           <div className="col-span-full py-12 text-center text-gray-300 font-bold">
-                              Nenhuma turma cadastrada nesta unidade.
+                              Nenhuma turma encontrada nesta unidade ativa.
                           </div>
                       )}
                   </div>

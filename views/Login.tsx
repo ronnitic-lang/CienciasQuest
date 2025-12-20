@@ -5,6 +5,7 @@ import { UserRole } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, User, ShieldCheck, Upload, LockKeyhole, Eye, EyeOff, CheckCircle2, FileText } from 'lucide-react';
 import { CLASSES, SHIFTS } from '../constants';
+import Mascot from '../components/Mascot';
 
 const Login: React.FC = () => {
   const { register, login, allUsers, schoolsList, activeClassrooms } = useAuth();
@@ -163,6 +164,9 @@ const Login: React.FC = () => {
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
             <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border-b-4 border-gray-200 text-center">
+                <div className="flex justify-center mb-6">
+                   <Mascot size={180} />
+                </div>
                 <h1 className="text-4xl font-extrabold text-secondary mb-2">Ciencias<span className="text-primary">Quest</span></h1>
                 <p className="text-gray-500 font-bold mb-8 text-sm uppercase tracking-widest">Plataforma BNCC Gamificada</p>
                 <div className="space-y-4">

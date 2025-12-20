@@ -6,6 +6,7 @@ import { Question, QuestionType } from '../types';
 import { MOCK_UNITS } from '../constants';
 import { ArrowRight, CheckCircle, XCircle, RefreshCw, Trophy, BrainCircuit } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import Mascot from '../components/Mascot';
 
 // Função para embaralhar alternativas e retornar novo índice correto
 const shuffleOptions = (question: Question): Question => {
@@ -88,10 +89,7 @@ const Quiz: React.FC = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
-        <div className="relative">
-            <RefreshCw className="animate-spin text-primary" size={64} />
-            <BrainCircuit className="absolute inset-0 m-auto text-secondary" size={24} />
-        </div>
+        <Mascot size={200} />
         <p className="text-xl font-black text-gray-700">{isPisa ? 'Carregando Simulado PISA 2025...' : 'A Coruja está preparando suas questões...'}</p>
         <p className="text-sm text-gray-400 font-bold max-w-xs text-center">
             {isPisa ? 'Prepare-se! Este teste avalia habilidades complexas de interpretação científica.' : 'Usando IA para gerar conteúdo único baseado na BNCC.'}

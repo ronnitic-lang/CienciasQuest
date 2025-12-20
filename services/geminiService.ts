@@ -3,6 +3,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Question, QuestionType } from "../types";
 import { PISA_EXAM_6, PISA_EXAM_7, PISA_EXAM_8 } from "../constants/pisaQuestions";
 
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
 export const generateQuestions = async (topic: string, grade: number, isExam: boolean = false): Promise<Question[]> => {
   if (isExam) {
     let bank: Omit<Question, 'id'>[] = [];
@@ -18,8 +20,6 @@ export const generateQuestions = async (topic: string, grade: number, isExam: bo
   }
 
   try {
-    // Standard Initialization: Always use process.env.API_KEY directly
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `Como um especialista em pedagogia de Ciências, crie 5 questões de múltipla escolha sobre ${topic} para alunos do ${grade}º ano. Siga rigorosamente a BNCC e retorne em formato JSON.`;
 
     const response = await ai.models.generateContent({
@@ -43,7 +43,6 @@ export const generateQuestions = async (topic: string, grade: number, isExam: bo
       }
     });
 
-    // Extracting Text Output: Using .text property directly as per guidelines
     const jsonStr = response.text?.trim() || '[]';
     const data = JSON.parse(jsonStr);
     
@@ -54,7 +53,6 @@ export const generateQuestions = async (topic: string, grade: number, isExam: bo
     }));
   } catch (error) {
     console.error("Erro ao gerar questões:", error);
-    // Fallback in case of API failure
     return [
       {
         id: 'mock-1',
@@ -65,5 +63,33 @@ export const generateQuestions = async (topic: string, grade: number, isExam: bo
         explanation: 'A célula é a unidade fundamental da vida, capaz de realizar todas as funções vitais.'
       }
     ];
+  }
+};
+
+export const generateMascotImage = async (): Promise<string> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: [
+        {
+          text: "A friendly, intelligent owl mascot for a science education app called CienciasQuest. The owl is wearing a small white lab coat and glasses, holding a glowing green test tube. Modern flat 2D vector style, vibrant blue and green colors, simple minimalist character design, isolated on a solid pure white background.",
+        },
+      ],
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1"
+        }
+      }
+    });
+
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    return '';
+  } catch (error) {
+    console.error("Erro ao gerar mascote:", error);
+    return ''; // Fallback para vazio ou ícone
   }
 };
