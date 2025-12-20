@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, BookOpen, AlertCircle, Lock, Unlock, Plus, Trash2, Building, Check, Save, PlusCircle } from 'lucide-react';
+import { Users, BookOpen, AlertCircle, Lock, Unlock, Plus, Trash2, Building, Check, Save, PlusCircle, GraduationCap } from 'lucide-react';
 import { MOCK_UNITS, CLASSES, SHIFTS } from '../constants';
 import { useAuth } from '../context/AuthContext';
 
@@ -20,6 +20,7 @@ const TeacherDashboard: React.FC = () => {
   const searchParams = new URLSearchParams(location.search);
   const currentTab = (searchParams.get('tab') as 'overview' | 'curriculum' | 'classrooms') || 'overview';
 
+  const [newGrade, setNewGrade] = useState<number>(user?.grade || 6);
   const [newClassId, setNewClassId] = useState('A');
   const [newShift, setNewShift] = useState('Manhã');
   const [showAddSchool, setShowAddSchool] = useState(false);
@@ -40,7 +41,7 @@ const TeacherDashboard: React.FC = () => {
     if (!user) return;
     addClassroom({
       school: user.school || '',
-      grade: user.grade || 6,
+      grade: newGrade,
       classId: newClassId,
       shift: newShift,
       teacherId: user.id
@@ -156,7 +157,7 @@ const TeacherDashboard: React.FC = () => {
       {currentTab === 'classrooms' && (
           <div className="space-y-6 animate-fade-in">
               
-              {/* BLOCO: GERENCIAR REDE ESCOLAR (Conforme Imagem) */}
+              {/* BLOCO: GERENCIAR REDE ESCOLAR */}
               <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 relative">
                   <div className="flex justify-between items-center mb-6">
                       <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
@@ -209,14 +210,28 @@ const TeacherDashboard: React.FC = () => {
                   <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
                     <Plus className="text-primary" /> Adicionar Turma em <span className="text-primary">{user?.school}</span>
                   </h2>
-                  <form onSubmit={handleAddClassroom} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <select value={newClassId} onChange={e => setNewClassId(e.target.value)} className="p-4 rounded-xl border-2 border-gray-100 font-bold bg-gray-50 text-gray-700 outline-none focus:border-primary">
-                          {CLASSES.map(c => <option key={c} value={c}>Turma {c}</option>)}
-                      </select>
-                      <select value={newShift} onChange={e => setNewShift(e.target.value)} className="p-4 rounded-xl border-2 border-gray-100 font-bold bg-gray-50 text-gray-700 outline-none focus:border-primary">
-                          {SHIFTS.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                      <button type="submit" className="bg-secondary text-white font-black py-4 rounded-xl shadow-lg border-b-4 border-green-700 hover:brightness-105 active:translate-y-1 transition-all uppercase">ADICIONAR</button>
+                  <form onSubmit={handleAddClassroom} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Ano Letivo</label>
+                          <select value={newGrade} onChange={e => setNewGrade(Number(e.target.value))} className="w-full p-4 rounded-xl border-2 border-gray-100 font-bold bg-gray-50 text-gray-700 outline-none focus:border-primary">
+                              {[6, 7, 8, 9].map(g => <option key={g} value={g}>{g}º Ano</option>)}
+                          </select>
+                      </div>
+                      <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Identificador</label>
+                          <select value={newClassId} onChange={e => setNewClassId(e.target.value)} className="w-full p-4 rounded-xl border-2 border-gray-100 font-bold bg-gray-50 text-gray-700 outline-none focus:border-primary">
+                              {CLASSES.map(c => <option key={c} value={c}>Turma {c}</option>)}
+                          </select>
+                      </div>
+                      <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Período</label>
+                          <select value={newShift} onChange={e => setNewShift(e.target.value)} className="w-full p-4 rounded-xl border-2 border-gray-100 font-bold bg-gray-50 text-gray-700 outline-none focus:border-primary">
+                              {SHIFTS.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                      </div>
+                      <div className="flex items-end">
+                          <button type="submit" className="w-full bg-secondary text-white font-black py-4 rounded-xl shadow-lg border-b-4 border-green-700 hover:brightness-105 active:translate-y-1 transition-all uppercase">ADICIONAR</button>
+                      </div>
                   </form>
               </div>
 
@@ -226,9 +241,14 @@ const TeacherDashboard: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {myClassrooms.filter(c => c.school === user?.school).map(room => (
                           <div key={room.id} className="p-6 rounded-2xl bg-gray-50 border-2 border-gray-100 flex justify-between items-center group hover:border-primary/20 transition-all">
-                              <div>
-                                  <h3 className="text-3xl font-black text-primary">TURMA {room.classId}</h3>
-                                  <p className="text-gray-400 font-black text-xs uppercase tracking-widest">{room.shift}</p>
+                              <div className="flex items-center gap-4">
+                                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-primary">
+                                      <GraduationCap size={24} />
+                                  </div>
+                                  <div>
+                                      <h3 className="text-2xl font-black text-primary">{room.grade}º {room.classId}</h3>
+                                      <p className="text-gray-400 font-black text-xs uppercase tracking-widest">{room.shift}</p>
+                                  </div>
                               </div>
                               <button onClick={() => removeClassroom(room.id)} className="p-3 text-red-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
                                  <Trash2 size={24} />
