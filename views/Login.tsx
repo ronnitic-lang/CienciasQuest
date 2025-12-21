@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, User, ShieldCheck, Upload, LockKeyhole, Eye, EyeOff, CheckCircle2, FileText, MapPin, AlertTriangle } from 'lucide-react';
+import { BookOpen, User, ShieldCheck, Upload, LockKeyhole, Eye, EyeOff, CheckCircle2, FileText, MapPin, AlertTriangle, Search } from 'lucide-react';
 import { CLASSES, SHIFTS, BRAZIL_STATES, BRAZIL_CITIES } from '../constants';
 import Mascot from '../components/Mascot';
 import { isProfane } from '../utils/security';
@@ -39,7 +39,6 @@ const Login: React.FC = () => {
   }, [allUsers, city]);
 
   const availableSchools = useMemo(() => {
-    // Escolas da lista global + escolas de professores na cidade selecionada
     const schoolsFromTeachers = activeTeachers.map(t => t.school).filter(Boolean) as string[];
     const uniqueSchools = Array.from(new Set([...schoolsList, ...schoolsFromTeachers])).sort();
     return uniqueSchools;
@@ -134,11 +133,18 @@ const Login: React.FC = () => {
       setIsLoading(true);
       setErrorMsg('');
 
-      // Validação de Profanidade
       if (isProfane(name)) {
-        setErrorMsg("O nome inserido contém termos impróprios para o ambiente escolar. Por favor, utilize seu nome real.");
+        setErrorMsg("O nome inserido contém termos impróprios. Por favor, utilize seu nome real.");
         setIsLoading(false);
         return;
+      }
+
+      // Validar se a cidade digitada existe no estado selecionado
+      const validCities = BRAZIL_CITIES[state] || [];
+      if (!validCities.includes(city)) {
+          setErrorMsg("Por favor, selecione uma cidade válida da lista sugerida.");
+          setIsLoading(false);
+          return;
       }
       
       const finalSchool = school === 'other' ? customSchool : school;
@@ -187,9 +193,6 @@ const Login: React.FC = () => {
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
             <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border-b-4 border-gray-200 text-center">
-                <div className="flex justify-center mb-6">
-                   <Mascot size={180} />
-                </div>
                 <h1 className="text-4xl font-extrabold text-secondary mb-2">Ciencias<span className="text-primary">Quest</span></h1>
                 <p className="text-gray-500 font-bold mb-8 text-sm uppercase tracking-widest">Plataforma BNCC Gamificada</p>
                 <div className="space-y-4">
@@ -271,20 +274,31 @@ const Login: React.FC = () => {
                 <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-primary font-bold" placeholder="seu@email.com" />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-gray-700 font-bold text-sm mb-1">Estado</label>
-                    <select required value={state} onChange={(e) => setState(e.target.value)} className="w-full p-3 rounded-xl border-2 border-gray-200 font-bold bg-white">
-                        <option value="">Selecione...</option>
+            <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-1">
+                    <label className="block text-gray-700 font-bold text-xs mb-1">UF</label>
+                    <select required value={state} onChange={(e) => setState(e.target.value)} className="w-full p-3 rounded-xl border-2 border-gray-200 font-bold bg-white outline-none focus:border-primary">
+                        <option value="">...</option>
                         {BRAZIL_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                 </div>
-                <div>
-                    <label className="block text-gray-700 font-bold text-sm mb-1">Cidade</label>
-                    <select required disabled={!state} value={city} onChange={(e) => setCity(e.target.value)} className="w-full p-3 rounded-xl border-2 border-gray-200 font-bold bg-white disabled:bg-gray-50">
-                        <option value="">Selecione...</option>
-                        {state && BRAZIL_CITIES[state]?.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                <div className="col-span-2 relative">
+                    <label className="block text-gray-700 font-bold text-xs mb-1">Cidade (Autocomplete)</label>
+                    <div className="relative">
+                        <input 
+                            required 
+                            disabled={!state} 
+                            list="cities-list"
+                            value={city} 
+                            onChange={(e) => setCity(e.target.value)} 
+                            placeholder={state ? "Digite e selecione..." : "Selecione UF primeiro"}
+                            className="w-full p-3 pr-10 rounded-xl border-2 border-gray-200 font-bold bg-white disabled:bg-gray-50 outline-none focus:border-primary" 
+                        />
+                        <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300" />
+                    </div>
+                    <datalist id="cities-list">
+                        {state && BRAZIL_CITIES[state]?.map(c => <option key={c} value={c} />)}
+                    </datalist>
                 </div>
             </div>
 

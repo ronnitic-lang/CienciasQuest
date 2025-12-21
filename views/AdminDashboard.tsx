@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole, User } from '../types';
-import { CheckCircle, XCircle, Trash2, Building, UserCheck, Loader2, Check, FolderOpen, FileText, Eye, Download, X, Edit3, Save } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, Building, UserCheck, Loader2, Check, FolderOpen, FileText, Eye, Download, X, Edit3, Save, Search } from 'lucide-react';
 import { BRAZIL_STATES, BRAZIL_CITIES } from '../constants';
 
 const AdminDashboard: React.FC = () => {
@@ -76,6 +76,16 @@ const AdminDashboard: React.FC = () => {
 
   const saveEdit = () => {
       if (editingUser) {
+          // Validar cidade antes de salvar se houver estado
+          const state = editForm.state || '';
+          const city = editForm.city || '';
+          const validCities = BRAZIL_CITIES[state] || [];
+          
+          if (state && !validCities.includes(city)) {
+              setNotification({ message: "Selecione uma cidade válida da lista!", type: 'error' });
+              return;
+          }
+
           updateUser(editingUser.id, editForm);
           setNotification({ message: "Dados atualizados com sucesso!", type: 'success' });
           setEditingUser(null);
@@ -106,18 +116,28 @@ const AdminDashboard: React.FC = () => {
                       <label className="text-[10px] font-black text-gray-400 uppercase">Email</label>
                       <input type="email" value={editForm.email || ''} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full p-3 rounded-xl border-2 border-gray-100 font-bold" />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-[10px] font-black text-gray-400 uppercase">Estado</label>
-                        <select value={editForm.state || ''} onChange={e => setEditForm({...editForm, state: e.target.value, city: ''})} className="w-full p-3 rounded-xl border-2 border-gray-100 font-bold bg-white">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="col-span-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase">UF</label>
+                        <select value={editForm.state || ''} onChange={e => setEditForm({...editForm, state: e.target.value, city: ''})} className="w-full p-3 rounded-xl border-2 border-gray-100 font-bold bg-white outline-none">
+                           <option value="">...</option>
                            {BRAZIL_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                     </div>
-                    <div>
-                        <label className="text-[10px] font-black text-gray-400 uppercase">Cidade</label>
-                        <select value={editForm.city || ''} onChange={e => setEditForm({...editForm, city: e.target.value})} className="w-full p-3 rounded-xl border-2 border-gray-100 font-bold bg-white">
-                           {editForm.state && BRAZIL_CITIES[editForm.state]?.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                    <div className="col-span-2 relative">
+                        <label className="text-[10px] font-black text-gray-400 uppercase">Cidade (Autocomplete)</label>
+                        <div className="relative">
+                            <input 
+                                list="admin-cities-list"
+                                value={editForm.city || ''} 
+                                onChange={e => setEditForm({...editForm, city: e.target.value})} 
+                                className="w-full p-3 pr-10 rounded-xl border-2 border-gray-100 font-bold bg-white outline-none" 
+                            />
+                            <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300" />
+                        </div>
+                        <datalist id="admin-cities-list">
+                           {editForm.state && BRAZIL_CITIES[editForm.state]?.map(c => <option key={c} value={c} />)}
+                        </datalist>
                     </div>
                   </div>
                   <div>
