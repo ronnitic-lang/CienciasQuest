@@ -2,10 +2,10 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Users, BookOpen, AlertCircle, Lock, Unlock, Building, Check, PlusCircle, GraduationCap, X, Zap, Trophy, RefreshCw, Star, Search, ChevronRight, Trash2 } from 'lucide-react';
+import { Users, BookOpen, AlertCircle, Lock, Unlock, Building, Check, PlusCircle, GraduationCap, X, Zap, Trophy, RefreshCw, Star, Search, ChevronRight, Trash2, ToggleLeft, ToggleRight, Filter } from 'lucide-react';
 import { MOCK_UNITS, CLASSES, SHIFTS } from '../constants';
 import { useAuth } from '../context/AuthContext';
-import { Classroom, User } from '../types';
+import { Classroom, User, Unit } from '../types';
 import Avatar from '../components/Avatar';
 
 const TeacherDashboard: React.FC = () => {
@@ -22,28 +22,32 @@ const TeacherDashboard: React.FC = () => {
   const [showAddSchool, setShowAddSchool] = useState(false);
   const [newSchoolName, setNewSchoolName] = useState('');
   const [showSavedToast, setShowSavedToast] = useState(false);
-  const [sentIncentives, setSentIncentives] = useState<string[]>([]);
   const [tempSelectedSchool, setTempSelectedSchool] = useState<string>(user?.school || '');
   const [isSwitching, setIsSwitching] = useState(false);
+  const [curriculumSearch, setCurriculumSearch] = useState('');
   
   // State para o Modal de Alunos da Turma
   const [selectedClassRoster, setSelectedClassRoster] = useState<Classroom | null>(null);
 
   const myUnits = useMemo(() => MOCK_UNITS.filter(u => u.grade === (user?.grade || 6)), [user?.grade]);
   
-  // Sincronização: Todos os alunos registrados na mesma escola do professor (Ranking Geral da Unidade)
+  const filteredCurriculum = useMemo(() => {
+    return myUnits.filter(u => 
+        u.title.toLowerCase().includes(curriculumSearch.toLowerCase()) || 
+        u.description.toLowerCase().includes(curriculumSearch.toLowerCase())
+    );
+  }, [myUnits, curriculumSearch]);
+
   const schoolRanking = useMemo(() => {
     return allUsers
       .filter(u => u.role === 'STUDENT' && u.school === user?.school)
       .sort((a, b) => (b.xp || 0) - (a.xp || 0));
   }, [allUsers, user?.school]);
 
-  // Alunos em estado crítico de engajamento
   const criticalStudents = useMemo(() => {
       return schoolRanking.filter(s => (s.xp || 0) < 300).slice(0, 5);
   }, [schoolRanking]);
 
-  // Sincronização: Alunos específicos de uma turma para o Modal
   const classRosterStudents = useMemo(() => {
     if (!selectedClassRoster) return [];
     return allUsers.filter(u => 
@@ -60,11 +64,11 @@ const TeacherDashboard: React.FC = () => {
   }, [activeClassrooms, user?.id, tempSelectedSchool]);
 
   const getBarColor = (value: number) => {
-    if (value >= 90) return '#4A90E2'; // Azul (Excelência)
-    if (value >= 70) return '#7ED321'; // Verde (Proficiente)
-    if (value >= 50) return '#F5A623'; // Laranja (Atenção)
-    if (value >= 40) return '#FFC107'; // Amarelo (Alerta)
-    return '#D0021B'; // Vermelho (Crítico)
+    if (value >= 90) return '#4A90E2'; 
+    if (value >= 70) return '#7ED321'; 
+    if (value >= 50) return '#F5A623'; 
+    if (value >= 40) return '#FFC107'; 
+    return '#D0021B'; 
   };
 
   const chartData = useMemo(() => {
@@ -94,6 +98,13 @@ const TeacherDashboard: React.FC = () => {
 
   return (
     <div className="pb-20">
+      {/* Toast Notification */}
+      {showSavedToast && (
+          <div className="fixed top-20 right-4 z-[120] bg-secondary text-white px-6 py-3 rounded-2xl shadow-xl border-b-4 border-green-700 animate-bounce-in flex items-center gap-2 font-black uppercase text-xs">
+              <Check size={18} /> Alteração Salva!
+          </div>
+      )}
+
       {/* MODAL: Lista de Chamada da Turma */}
       {selectedClassRoster && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -135,9 +146,6 @@ const TeacherDashboard: React.FC = () => {
                           <p className="text-gray-400 font-bold italic">Nenhum aluno matriculado nesta turma ainda.</p>
                       </div>
                   )}
-              </div>
-              <div className="p-4 border-t bg-gray-50 text-center">
-                  <p className="text-[10px] font-black text-gray-400 uppercase">Unidade: {selectedClassRoster.school}</p>
               </div>
            </div>
         </div>
@@ -187,7 +195,6 @@ const TeacherDashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* GRÁFICO DE MÉDIA POR HABILIDADE */}
                 <div className="lg:col-span-2 bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-black text-gray-800 leading-tight">Média de Acertos (%)</h2>
@@ -213,7 +220,6 @@ const TeacherDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* RANKING DA UNIDADE ESCOLAR - SOLICITADO */}
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col h-[400px]">
                     <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                        <Trophy size={14} className="text-accent" /> Hall da Fama - Unidade
@@ -239,10 +245,82 @@ const TeacherDashboard: React.FC = () => {
                                 </div>
                             </div>
                         ))}
-                        {schoolRanking.length === 0 && <p className="text-center py-10 text-gray-400 italic text-xs font-bold">Aguardando dados...</p>}
                     </div>
                 </div>
             </div>
+          </div>
+      )}
+
+      {currentTab === 'curriculum' && (
+          <div className="space-y-6 animate-fade-in">
+              <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                      <div>
+                          <h2 className="text-xl font-black text-gray-800 flex items-center gap-3">
+                             <BookOpen className="text-primary" /> Controle de Habilidades
+                          </h2>
+                          <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">Libere ou bloqueie módulos para seus alunos do {user?.grade}º ano</p>
+                      </div>
+                      <div className="relative">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                          <input 
+                            type="text" 
+                            placeholder="Buscar BNCC ou tema..." 
+                            value={curriculumSearch}
+                            onChange={(e) => setCurriculumSearch(e.target.value)}
+                            className="pl-12 pr-4 py-3 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold w-full md:w-64 transition-all"
+                          />
+                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                      {filteredCurriculum.map((unit) => {
+                          const isUnlocked = unlockedUnitIds.includes(unit.id);
+                          const isReview = unit.type === 'review';
+
+                          return (
+                            <div key={unit.id} className={`p-5 rounded-3xl border-2 transition-all flex items-center justify-between gap-4 ${
+                                isUnlocked ? 'bg-white border-blue-50 shadow-sm' : 'bg-gray-50/50 border-gray-50 opacity-60'
+                            }`}>
+                                <div className="flex items-center gap-4 flex-1">
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-xs ${unit.color}`}>
+                                        {unit.type === 'review' ? <RefreshCw size={20} /> : unit.title.replace('EF', '')}
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{unit.title}</span>
+                                            {isReview && <span className="text-[8px] font-black bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-md">PADRÃO</span>}
+                                        </div>
+                                        <h3 className="font-bold text-gray-800 text-sm leading-tight">{unit.description}</h3>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    <div className={`hidden sm:block text-right ${isUnlocked ? 'text-secondary' : 'text-gray-400'}`}>
+                                        <p className="text-[9px] font-black uppercase tracking-widest">{isUnlocked ? 'Liberado' : 'Bloqueado'}</p>
+                                        <p className="text-[8px] font-bold opacity-60 leading-none">Status na Trilha</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => { toggleUnitLock(unit.id); triggerToast(); }}
+                                        disabled={isReview} // Revisão é liberada por padrão
+                                        className={`p-1 rounded-full transition-all ${
+                                            isUnlocked ? 'text-secondary' : 'text-gray-300'
+                                        } ${isReview ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110 active:scale-95'}`}
+                                    >
+                                        {isUnlocked ? <ToggleRight size={44} /> : <ToggleLeft size={44} />}
+                                    </button>
+                                </div>
+                            </div>
+                          );
+                      })}
+                      {filteredCurriculum.length === 0 && (
+                          <div className="text-center py-16">
+                              <Search size={48} className="mx-auto text-gray-100 mb-2" />
+                              <p className="text-gray-400 font-bold italic">Nenhum módulo encontrado para "{curriculumSearch}"</p>
+                          </div>
+                      )}
+                  </div>
+              </div>
           </div>
       )}
 
@@ -331,13 +409,10 @@ const TeacherDashboard: React.FC = () => {
                               </div>
                           </div>
                       ))}
-                      {viewClassrooms.length === 0 && <p className="col-span-2 text-center py-16 text-gray-300 font-bold italic">Nenhuma turma cadastrada nesta unidade escolar.</p>}
                   </div>
               </div>
           </div>
       )}
-      
-      {/* Abas Curriculum mantidas conforme anterior... */}
     </div>
   );
 };
