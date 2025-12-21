@@ -2,14 +2,19 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole, User } from '../types';
-import { CheckCircle, XCircle, Trash2, Building, UserCheck, Loader2, Check, FolderOpen, FileText, Eye, Download, X } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, Building, UserCheck, Loader2, Check, FolderOpen, FileText, Eye, Download, X, Edit3, Save } from 'lucide-react';
+import { BRAZIL_STATES, BRAZIL_CITIES } from '../constants';
 
 const AdminDashboard: React.FC = () => {
-  const { allUsers, schoolsList, approveTeacher, deleteUser, addSchool } = useAuth();
+  const { allUsers, schoolsList, approveTeacher, deleteUser, addSchool, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'pending' | 'users' | 'schools' | 'documents'>('pending');
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [viewingDoc, setViewingDoc] = useState<User | null>(null);
+  
+  // States para Edição
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editForm, setEditForm] = useState<Partial<User>>({});
 
   useEffect(() => {
     if (notification) {
@@ -19,7 +24,7 @@ const AdminDashboard: React.FC = () => {
   }, [notification]);
 
   const pendingTeachers = allUsers.filter(u => u.role === UserRole.TEACHER && u.status === 'pending');
-  const activeUsers = allUsers.filter(u => u.role !== UserRole.ADMIN);
+  const activeUsers = allUsers.filter(u => u.role !== UserRole.ADMIN).sort((a,b) => a.name.localeCompare(b.name));
   const usersWithDocs = allUsers.filter(u => u.proofFileUrl);
 
   const handleApprove = async (userId: string, userSchool?: string) => {
@@ -64,8 +69,76 @@ const AdminDashboard: React.FC = () => {
       }
   };
 
+  const startEditing = (user: User) => {
+      setEditingUser(user);
+      setEditForm({ ...user });
+  };
+
+  const saveEdit = () => {
+      if (editingUser) {
+          updateUser(editingUser.id, editForm);
+          setNotification({ message: "Dados atualizados com sucesso!", type: 'success' });
+          setEditingUser(null);
+      }
+  };
+
   return (
     <div className="pb-20 relative">
+      
+      {/* User Editor Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+           <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+              <div className="p-6 border-b flex justify-between items-center bg-gray-50">
+                 <h3 className="font-black text-gray-800 flex items-center gap-2">
+                    <Edit3 size={20} className="text-primary" /> Editar Usuário
+                 </h3>
+                 <button onClick={() => setEditingUser(null)} className="p-2 hover:bg-gray-200 rounded-full">
+                    <X size={20} />
+                 </button>
+              </div>
+              <div className="p-6 overflow-y-auto space-y-4">
+                  <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase">Nome Completo</label>
+                      <input type="text" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full p-3 rounded-xl border-2 border-gray-100 font-bold" />
+                  </div>
+                  <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase">Email</label>
+                      <input type="email" value={editForm.email || ''} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full p-3 rounded-xl border-2 border-gray-100 font-bold" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-[10px] font-black text-gray-400 uppercase">Estado</label>
+                        <select value={editForm.state || ''} onChange={e => setEditForm({...editForm, state: e.target.value, city: ''})} className="w-full p-3 rounded-xl border-2 border-gray-100 font-bold bg-white">
+                           {BRAZIL_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black text-gray-400 uppercase">Cidade</label>
+                        <select value={editForm.city || ''} onChange={e => setEditForm({...editForm, city: e.target.value})} className="w-full p-3 rounded-xl border-2 border-gray-100 font-bold bg-white">
+                           {editForm.state && BRAZIL_CITIES[editForm.state]?.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                    </div>
+                  </div>
+                  <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase">Escola</label>
+                      <input type="text" value={editForm.school || ''} onChange={e => setEditForm({...editForm, school: e.target.value})} className="w-full p-3 rounded-xl border-2 border-gray-100 font-bold" />
+                  </div>
+                  <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase">Experiência (XP)</label>
+                      <input type="number" value={editForm.xp || 0} onChange={e => setEditForm({...editForm, xp: Number(e.target.value)})} className="w-full p-3 rounded-xl border-2 border-gray-100 font-bold" />
+                  </div>
+              </div>
+              <div className="p-6 border-t bg-gray-50 flex gap-4">
+                  <button onClick={() => setEditingUser(null)} className="flex-1 py-3 font-bold text-gray-500">Cancelar</button>
+                  <button onClick={saveEdit} className="flex-1 py-3 bg-primary text-white font-black rounded-xl border-b-4 border-blue-700 shadow-lg flex items-center justify-center gap-2">
+                    <Save size={20} /> SALVAR ALTERAÇÕES
+                  </button>
+              </div>
+           </div>
+        </div>
+      )}
+
       {/* Doc Viewer Modal */}
       {viewingDoc && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -114,8 +187,8 @@ const AdminDashboard: React.FC = () => {
       )}
 
       <div className="bg-dark text-white p-8 rounded-3xl mb-8 shadow-lg">
-          <h1 className="text-3xl font-extrabold mb-2">Painel de Controle</h1>
-          <p className="opacity-80">Gestão central de documentos e validações.</p>
+          <h1 className="text-3xl font-extrabold mb-2 text-center md:text-left">Painel Administrativo</h1>
+          <p className="opacity-80 text-center md:text-left">Gestão de segurança e governança de dados.</p>
       </div>
 
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
@@ -129,13 +202,13 @@ const AdminDashboard: React.FC = () => {
             onClick={() => setActiveTab('documents')}
             className={`px-6 py-3 rounded-xl font-bold whitespace-nowrap transition-all transform active:scale-95 ${activeTab === 'documents' ? 'bg-primary text-white shadow-lg' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
           >
-            Pasta de Arquivos ({usersWithDocs.length})
+            Arquivos
           </button>
           <button 
             onClick={() => setActiveTab('users')}
             className={`px-6 py-3 rounded-xl font-bold whitespace-nowrap transition-all transform active:scale-95 ${activeTab === 'users' ? 'bg-gray-800 text-white shadow-lg' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
           >
-            Usuários
+            Editar Usuários ({activeUsers.length})
           </button>
           <button 
             onClick={() => setActiveTab('schools')}
@@ -151,50 +224,27 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'pending' && (
               <div className="p-6">
                  <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <UserCheck className="text-secondary" /> Professores para Analisar
+                    <UserCheck className="text-secondary" /> Aguardando Validação
                  </h2>
-                 
                  {pendingTeachers.length === 0 ? (
                      <div className="text-center py-20 text-gray-400">
-                         <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                             <Check size={40} className="text-gray-200" />
-                         </div>
-                         <p className="font-bold">Nenhuma validação pendente.</p>
+                         <Check size={40} className="mx-auto mb-4 opacity-20" />
+                         <p className="font-bold">Tudo em dia!</p>
                      </div>
                  ) : (
                      <div className="space-y-4">
                          {pendingTeachers.map(teacher => (
-                             <div key={teacher.id} className="border-2 border-gray-100 bg-white rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-shadow animate-fade-in">
+                             <div key={teacher.id} className="border-2 border-gray-100 bg-white rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fade-in">
                                  <div className="flex-1">
                                      <h3 className="font-extrabold text-gray-800 text-lg">{teacher.name}</h3>
-                                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-                                         <p className="text-gray-600 font-medium flex items-center gap-1 text-sm"><Building size={14} /> {teacher.school}</p>
-                                         <p className="text-gray-400 text-sm">{teacher.email}</p>
-                                     </div>
+                                     <p className="text-gray-600 font-medium text-sm">{teacher.school} • {teacher.city}/{teacher.state}</p>
                                  </div>
                                  <div className="flex flex-wrap gap-3 w-full md:w-auto">
-                                     {teacher.proofFileUrl && (
-                                       <button 
-                                          onClick={() => setViewingDoc(teacher)}
-                                          className="flex-1 md:flex-none px-4 py-2.5 bg-blue-50 text-primary font-bold rounded-xl hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
-                                       >
-                                           <Eye size={18} /> Ver Documento
-                                       </button>
-                                     )}
-                                     <button 
-                                        disabled={processingId !== null}
-                                        onClick={() => handleReject(teacher.id)}
-                                        className="flex-1 md:flex-none px-4 py-2.5 bg-red-50 text-red-500 font-bold rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                                     >
-                                         <XCircle size={18} /> Rejeitar
+                                     <button onClick={() => setViewingDoc(teacher)} className="flex-1 md:flex-none px-4 py-2.5 bg-blue-50 text-primary font-bold rounded-xl flex items-center justify-center gap-2">
+                                         <Eye size={18} /> Documento
                                      </button>
-                                     <button 
-                                        disabled={processingId !== null}
-                                        onClick={() => handleApprove(teacher.id, teacher.school)}
-                                        className="flex-1 md:flex-none px-6 py-2.5 bg-secondary text-white font-extrabold rounded-xl hover:bg-green-600 shadow-lg border-b-4 border-green-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                                     >
-                                         {processingId === teacher.id ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
-                                         {processingId === teacher.id ? '...' : 'APROVAR'}
+                                     <button onClick={() => handleApprove(teacher.id, teacher.school)} className="flex-1 md:flex-none px-6 py-2.5 bg-secondary text-white font-extrabold rounded-xl border-b-4 border-green-700 flex items-center justify-center gap-2">
+                                         <CheckCircle size={18} /> APROVAR
                                      </button>
                                  </div>
                              </div>
@@ -204,50 +254,7 @@ const AdminDashboard: React.FC = () => {
               </div>
           )}
 
-          {/* TAB: DOCUMENTS FOLDER */}
-          {activeTab === 'documents' && (
-              <div className="p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                      <FolderOpen className="text-primary" /> Pasta de Comprovantes Recebidos
-                    </h2>
-                  </div>
-                  
-                  {usersWithDocs.length === 0 ? (
-                    <div className="text-center py-20 text-gray-300">
-                      <FolderOpen size={64} className="mx-auto mb-4 opacity-20" />
-                      <p className="font-bold">A pasta está vazia.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {usersWithDocs.map(u => (
-                        <div key={u.id} className="p-4 rounded-2xl border-2 border-gray-100 hover:border-primary/30 transition-all flex flex-col gap-3 group bg-gray-50/30">
-                          <div className="flex items-start justify-between">
-                            <div className="p-3 bg-white rounded-xl shadow-sm text-primary group-hover:scale-110 transition-transform">
-                              <FileText size={32} />
-                            </div>
-                            <span className={`text-[9px] font-black px-2 py-1 rounded-full ${u.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
-                              {u.status === 'active' ? 'VERIFICADO' : 'PENDENTE'}
-                            </span>
-                          </div>
-                          <div>
-                            <p className="font-black text-gray-800 text-sm truncate">{u.name}</p>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase truncate">{u.school}</p>
-                          </div>
-                          <button 
-                            onClick={() => setViewingDoc(u)}
-                            className="mt-2 w-full py-2 bg-white text-primary border border-primary/20 hover:bg-primary hover:text-white rounded-xl font-bold text-xs transition-all"
-                          >
-                            ABRIR ARQUIVO
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-              </div>
-          )}
-
-          {/* TAB: ALL USERS */}
+          {/* TAB: EDIT USERS */}
           {activeTab === 'users' && (
               <div className="p-0">
                   <div className="overflow-x-auto">
@@ -255,7 +262,7 @@ const AdminDashboard: React.FC = () => {
                           <thead className="bg-gray-50 border-b border-gray-100">
                               <tr>
                                   <th className="p-4 font-black text-gray-400 text-[10px] uppercase tracking-wider">Usuário</th>
-                                  <th className="p-4 font-black text-gray-400 text-[10px] uppercase tracking-wider">Função</th>
+                                  <th className="p-4 font-black text-gray-400 text-[10px] uppercase tracking-wider">Localidade</th>
                                   <th className="p-4 font-black text-gray-400 text-[10px] uppercase tracking-wider">Escola</th>
                                   <th className="p-4 font-black text-gray-400 text-[10px] uppercase tracking-wider text-center">Ações</th>
                               </tr>
@@ -265,16 +272,17 @@ const AdminDashboard: React.FC = () => {
                                   <tr key={u.id} className="border-b border-gray-50 hover:bg-blue-50/30 transition-colors">
                                       <td className="p-4">
                                           <p className="font-extrabold text-gray-700">{u.name}</p>
-                                          <p className="text-xs text-gray-400">{u.email}</p>
+                                          <p className="text-[10px] font-black text-primary uppercase">{u.role}</p>
                                       </td>
-                                      <td className="p-4">
-                                          <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${u.role === UserRole.TEACHER ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                                              {u.role === UserRole.TEACHER ? 'PROFESSOR' : 'ALUNO'}
-                                          </span>
+                                      <td className="p-4 text-sm font-bold text-gray-500">
+                                          {u.city}, {u.state}
                                       </td>
-                                      <td className="p-4 text-sm font-bold text-gray-500">{u.school}</td>
+                                      <td className="p-4 text-sm font-bold text-gray-500 truncate max-w-[200px]">{u.school}</td>
                                       <td className="p-4 text-center">
-                                          <button onClick={() => handleDeleteUser(u.id)} className="text-red-300 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 transition-all"><Trash2 size={20} /></button>
+                                          <div className="flex items-center justify-center gap-2">
+                                              <button onClick={() => startEditing(u)} className="text-primary hover:bg-blue-100 p-2 rounded-xl transition-all"><Edit3 size={18} /></button>
+                                              <button onClick={() => handleDeleteUser(u.id)} className="text-red-300 hover:text-red-500 p-2 rounded-xl transition-all"><Trash2 size={18} /></button>
+                                          </div>
                                       </td>
                                   </tr>
                               ))}
@@ -287,23 +295,17 @@ const AdminDashboard: React.FC = () => {
           {/* TAB: SCHOOLS */}
           {activeTab === 'schools' && (
               <div className="p-6">
-                  <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Building className="text-accent" /> Rede Escolar</h2>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                      {schoolsList.map((school, idx) => (
-                         <div key={idx} className="p-5 rounded-2xl border-2 border-gray-50 bg-gray-50/50 flex items-center gap-4 hover:bg-white hover:border-accent/20 transition-all group">
-                             <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-400 group-hover:text-accent shadow-sm font-black text-xs transition-colors">{idx + 1}</div>
-                             <span className="font-extrabold text-gray-700">{school}</span>
+                         <div key={idx} className="p-5 rounded-2xl border-2 border-gray-50 bg-gray-50/50 flex items-center gap-4 hover:bg-white transition-all group">
+                             <Building className="text-gray-300 group-hover:text-accent" />
+                             <span className="font-extrabold text-gray-700 text-sm">{school}</span>
                          </div>
                      ))}
                  </div>
               </div>
           )}
       </div>
-
-      <style>{`
-        @keyframes fade-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .animate-fade-in { animation: fade-in 0.2s ease-out; }
-      `}</style>
     </div>
   );
 };

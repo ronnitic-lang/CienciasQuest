@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole, AvatarConfig, Classroom } from '../types';
 import { DEFAULT_AVATAR, MOCK_SCHOOLS } from '../constants';
+import { normalizeSchoolName } from '../utils/security';
 
 interface AuthContextType {
   user: User | null;
@@ -11,6 +12,7 @@ interface AuthContextType {
   
   login: (email: string, role: UserRole, password?: string) => { success: boolean, message?: string };
   register: (userData: Partial<User>) => void;
+  updateUser: (userId: string, data: Partial<User>) => void;
   logout: () => void;
   
   updateAvatar: (config: AvatarConfig) => void;
@@ -100,6 +102,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: userData.email || `${userData.name?.toLowerCase().replace(/\s/g, '')}@email.com`,
       role: userData.role || UserRole.STUDENT,
       status: userData.role === UserRole.TEACHER ? 'pending' : 'active',
+      state: userData.state,
+      city: userData.city,
       school: userData.school,
       teacherSchools: userData.role === UserRole.TEACHER && userData.school ? [userData.school] : [],
       grade: userData.grade,
@@ -118,6 +122,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (newUser.role === UserRole.STUDENT) {
         setUser(newUser);
         localStorage.setItem('cq_current_user', JSON.stringify(newUser));
+    }
+  };
+
+  const updateUser = (userId: string, data: Partial<User>) => {
+    setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, ...data } : u));
+    if (user?.id === userId) {
+      const updatedUser = { ...user, ...data };
+      setUser(updatedUser);
+      localStorage.setItem('cq_current_user', JSON.stringify(updatedUser));
     }
   };
 
@@ -186,7 +199,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const teacher = updatedList.find(u => u.id === userId);
       
       if (teacher && teacher.school && teacher.grade && teacher.classId && teacher.shift) {
-        // Criar a sala de aula imediatamente para que os alunos a encontrem
         const newRoom: Classroom = {
           id: `room-${Date.now()}`,
           school: teacher.school,
@@ -198,7 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         setActiveClassrooms(prevRooms => {
           const exists = prevRooms.find(r => 
-            r.school === newRoom.school && 
+            normalizeSchoolName(r.school) === normalizeSchoolName(newRoom.school) && 
             r.grade === newRoom.grade && 
             r.classId === newRoom.classId && 
             r.shift === newRoom.shift
@@ -216,7 +228,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addSchool = (schoolName: string) => {
-    if (!schoolsList.includes(schoolName)) setSchoolsList(prev => [...prev, schoolName]);
+    const normalizedNew = normalizeSchoolName(schoolName);
+    const exists = schoolsList.some(s => normalizeSchoolName(s) === normalizedNew);
+    
+    if (!exists) setSchoolsList(prev => [...prev, schoolName]);
     
     if (user && user.role === UserRole.TEACHER) {
         const updatedSchools = Array.from(new Set([...(user.teacherSchools || []), schoolName]));
@@ -258,7 +273,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider value={{ 
         user, allUsers, schoolsList, activeClassrooms,
-        login, register, logout, updateAvatar, addXp,
+        login, register, updateUser, logout, updateAvatar, addXp,
         unlockedUnitIds, toggleUnitLock,
         approveTeacher, deleteUser, addSchool,
         addClassroom, removeClassroom, switchActiveSchool, removeSchoolFromTeacher

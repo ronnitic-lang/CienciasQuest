@@ -19,11 +19,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!user) return <div className="min-h-screen bg-light">{children}</div>;
 
   const NavItem = ({ to, icon: Icon, label, tab }: any) => {
-    // Verifica se o caminho base é igual
     const isPathActive = location.pathname === to;
-    
-    // Se houver tab (caso do dashboard do professor), verifica se o parâmetro de busca bate
-    // ou se não há parâmetro e a tab é a padrão (overview)
     const isTabActive = tab 
         ? location.search === `?tab=${tab}` || (location.search === '' && tab === 'overview')
         : location.search === '';
@@ -51,9 +47,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <div className="flex md:flex-col h-full md:p-4 justify-between">
           
           <div className="hidden md:flex flex-col items-center mb-8 pt-4">
-             <h1 className="text-2xl font-extrabold text-secondary tracking-tight">
+             <h1 className="text-2xl font-black text-secondary tracking-tight">
                Ciencias<span className="text-primary">Quest</span>
              </h1>
+             <div className="h-1 w-12 bg-accent mt-1 rounded-full"></div>
           </div>
 
           <div className="flex md:flex-col justify-around w-full md:space-y-2 p-2 md:p-0">

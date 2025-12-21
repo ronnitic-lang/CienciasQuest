@@ -3,9 +3,10 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, User, ShieldCheck, Upload, LockKeyhole, Eye, EyeOff, CheckCircle2, FileText } from 'lucide-react';
-import { CLASSES, SHIFTS } from '../constants';
+import { BookOpen, User, ShieldCheck, Upload, LockKeyhole, Eye, EyeOff, CheckCircle2, FileText, MapPin, AlertTriangle } from 'lucide-react';
+import { CLASSES, SHIFTS, BRAZIL_STATES, BRAZIL_CITIES } from '../constants';
 import Mascot from '../components/Mascot';
+import { isProfane } from '../utils/security';
 
 const Login: React.FC = () => {
   const { register, login, allUsers, schoolsList, activeClassrooms } = useAuth();
@@ -22,6 +23,8 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [state, setState] = useState('');
+  const [city, setCity] = useState('');
   const [school, setSchool] = useState('');
   const [customSchool, setCustomSchool] = useState('');
   const [grade, setGrade] = useState<number>(6);
@@ -32,10 +35,11 @@ const Login: React.FC = () => {
   const [proofDataUrl, setProofDataUrl] = useState<string>('');
 
   const activeTeachers = useMemo(() => {
-    return allUsers.filter(u => u.role === UserRole.TEACHER && u.status === 'active');
-  }, [allUsers]);
+    return allUsers.filter(u => u.role === UserRole.TEACHER && u.status === 'active' && u.city === city);
+  }, [allUsers, city]);
 
   const availableSchools = useMemo(() => {
+    // Escolas da lista global + escolas de professores na cidade selecionada
     const schoolsFromTeachers = activeTeachers.map(t => t.school).filter(Boolean) as string[];
     const uniqueSchools = Array.from(new Set([...schoolsList, ...schoolsFromTeachers])).sort();
     return uniqueSchools;
@@ -69,13 +73,22 @@ const Login: React.FC = () => {
   }, [filteredClassrooms, classId, shift, activeTeachers, role]);
 
   useEffect(() => {
+    setCity('');
+    setSchool('');
+    setClassId('');
+    setShift('');
+  }, [state]);
+
+  useEffect(() => {
+    setSchool('');
+    setClassId('');
+    setShift('');
+  }, [city]);
+
+  useEffect(() => {
     setClassId('');
     setShift('');
   }, [school, grade]);
-
-  useEffect(() => {
-    setShift('');
-  }, [classId]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -119,6 +132,14 @@ const Login: React.FC = () => {
   const handleRegisterSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       setIsLoading(true);
+      setErrorMsg('');
+
+      // Validação de Profanidade
+      if (isProfane(name)) {
+        setErrorMsg("O nome inserido contém termos impróprios para o ambiente escolar. Por favor, utilize seu nome real.");
+        setIsLoading(false);
+        return;
+      }
       
       const finalSchool = school === 'other' ? customSchool : school;
       const finalTeacherId = role === UserRole.STUDENT ? (matchingTeacher?.id || '') : '';
@@ -134,6 +155,8 @@ const Login: React.FC = () => {
         name, 
         email, 
         role, 
+        state,
+        city,
         school: finalSchool, 
         grade, 
         classId, 
@@ -153,7 +176,7 @@ const Login: React.FC = () => {
             <div className="bg-white p-10 rounded-3xl shadow-xl w-full max-w-md border-b-4 border-gray-200 text-center animate-fade-in">
                 <div className="w-20 h-20 bg-green-100 text-secondary rounded-full flex items-center justify-center mx-auto mb-6"><CheckCircle2 size={48} /></div>
                 <h2 className="text-3xl font-black text-gray-800 mb-4">Cadastro Realizado!</h2>
-                <p className="text-gray-500 font-bold mb-8">Seus dados e documentos foram enviados com sucesso para nossa pasta de validação. Aguarde a análise do administrador.</p>
+                <p className="text-gray-500 font-bold mb-8">Seus dados e documentos foram enviados com sucesso. Aguarde a análise do administrador.</p>
                 <button onClick={() => { setStep(2); setMode('login'); }} className="w-full bg-primary hover:bg-blue-600 text-white font-extrabold py-4 rounded-xl shadow-lg border-b-4 border-blue-700">VOLTAR PARA O INÍCIO</button>
             </div>
         </div>
@@ -226,66 +249,55 @@ const Login: React.FC = () => {
       );
   }
 
-  if (step === 4 && role === UserRole.TEACHER) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-            <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border-b-4 border-gray-200">
-                <div className="text-center mb-6">
-                    <ShieldCheck className="mx-auto text-secondary mb-2" size={48} />
-                    <h2 className="text-2xl font-extrabold text-gray-800">Validação Docente</h2>
-                    <p className="text-gray-500 text-sm font-bold">Por favor, envie um documento comprobatório do magistério (Diploma ou Contracheque).</p>
-                </div>
-                <div className="space-y-6">
-                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer relative">
-                        <Upload className="mx-auto text-gray-400 mb-2" size={32} />
-                        <label className="block text-sm font-bold text-primary cursor-pointer hover:underline">
-                            Clique para anexar arquivo
-                            <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileChange} />
-                        </label>
-                        {proofFile && (
-                          <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-100 flex items-center gap-3 text-left">
-                            <FileText className="text-primary shrink-0" />
-                            <div className="overflow-hidden">
-                              <p className="text-xs font-black text-gray-800 truncate">{proofFile.name}</p>
-                              <p className="text-[10px] text-gray-400">{(proofFile.size / 1024).toFixed(1)} KB • Pronto para validação</p>
-                            </div>
-                          </div>
-                        )}
-                    </div>
-                    <div className="flex gap-4">
-                        <button onClick={() => setStep(3)} className="flex-1 py-3 font-bold text-gray-500">Voltar</button>
-                        <button onClick={handleRegisterSubmit} disabled={!proofFile || isLoading} className="flex-1 bg-secondary hover:bg-green-600 text-white font-extrabold py-3 rounded-xl shadow-lg border-b-4 border-green-700 disabled:opacity-50 disabled:grayscale">
-                            {isLoading ? 'ENVIANDO...' : 'CONCLUIR'}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-      );
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border-b-4 border-gray-200">
+      <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border-b-4 border-gray-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
         <h2 className="text-2xl font-extrabold text-gray-800 mb-6 text-center">Cadastro {role === UserRole.STUDENT ? 'do Aluno' : 'do Professor'}</h2>
+        
+        {errorMsg && (
+          <div className="mb-4 bg-red-50 border-2 border-red-100 p-3 rounded-xl flex items-start gap-3 text-red-600 animate-shake">
+            <AlertTriangle size={24} className="shrink-0" />
+            <p className="text-xs font-bold leading-tight">{errorMsg}</p>
+          </div>
+        )}
+
         <form onSubmit={handleRegisterSubmit} className="space-y-4">
             <div>
                 <label className="block text-gray-700 font-bold text-sm mb-1">Nome Completo</label>
-                <input required type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-primary font-bold" />
+                <input required type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-primary font-bold" placeholder="Digite seu nome real" />
             </div>
             <div>
                 <label className="block text-gray-700 font-bold text-sm mb-1">Email</label>
-                <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-primary font-bold" />
+                <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-primary font-bold" placeholder="seu@email.com" />
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-gray-700 font-bold text-sm mb-1">Estado</label>
+                    <select required value={state} onChange={(e) => setState(e.target.value)} className="w-full p-3 rounded-xl border-2 border-gray-200 font-bold bg-white">
+                        <option value="">Selecione...</option>
+                        {BRAZIL_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-gray-700 font-bold text-sm mb-1">Cidade</label>
+                    <select required disabled={!state} value={city} onChange={(e) => setCity(e.target.value)} className="w-full p-3 rounded-xl border-2 border-gray-200 font-bold bg-white disabled:bg-gray-50">
+                        <option value="">Selecione...</option>
+                        {state && BRAZIL_CITIES[state]?.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                </div>
+            </div>
+
             <div>
                  <label className="block text-gray-700 font-bold text-sm mb-1">Escola</label>
-                 <select required value={school} onChange={(e) => setSchool(e.target.value)} className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-primary font-bold bg-white mb-2">
+                 <select required disabled={!city} value={school} onChange={(e) => setSchool(e.target.value)} className="w-full p-3 rounded-xl border-2 border-gray-200 focus:border-primary font-bold bg-white mb-2 disabled:bg-gray-50">
                     <option value="">Selecione a Escola</option>
                     {availableSchools.map(s => <option key={s} value={s}>{s}</option>)}
                     {role === UserRole.TEACHER && <option value="other">+ Cadastrar Nova Escola</option>}
                  </select>
                  {school === 'other' && <input required type="text" value={customSchool} onChange={(e) => setCustomSchool(e.target.value)} placeholder="Nome da escola" className="w-full p-3 rounded-xl border-2 border-secondary bg-green-50 font-bold" />}
             </div>
+
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className="block text-gray-700 font-bold text-sm mb-1">Ano</label>
@@ -308,15 +320,19 @@ const Login: React.FC = () => {
                     {shiftOptions.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
             </div>
+
             {role === UserRole.STUDENT && (
                 <div className={`bg-blue-50 p-4 rounded-2xl border-2 transition-all ${matchingTeacher ? 'border-primary' : 'border-gray-100'}`}>
                      <label className="block text-primary font-black text-xs uppercase mb-1">Professor(a) Sincronizado</label>
-                     <p className="font-bold text-gray-700">{matchingTeacher ? matchingTeacher.name : <span className="text-gray-400 italic">Aguardando Turma/Turno...</span>}</p>
+                     <p className="font-bold text-gray-700">{matchingTeacher ? matchingTeacher.name : <span className="text-gray-400 italic">Aguardando localidade/turma...</span>}</p>
                 </div>
             )}
+
             <div className="flex gap-4 pt-4">
                 <button type="button" onClick={() => setStep(2)} className="px-6 py-3 font-bold text-gray-400">Voltar</button>
-                <button type="submit" disabled={role === UserRole.STUDENT && !matchingTeacher} className="flex-1 bg-primary hover:bg-blue-600 text-white font-extrabold py-3 rounded-xl shadow-lg border-b-4 border-blue-700 disabled:opacity-50">PRÓXIMO</button>
+                <button type="submit" disabled={role === UserRole.STUDENT && !matchingTeacher} className="flex-1 bg-primary hover:bg-blue-600 text-white font-extrabold py-3 rounded-xl shadow-lg border-b-4 border-blue-700 disabled:opacity-50">
+                  {role === UserRole.TEACHER ? 'PRÓXIMO' : 'CONCLUIR'}
+                </button>
             </div>
         </form>
       </div>

@@ -3,11 +3,12 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Question, QuestionType } from "../types";
 import { PISA_EXAM_6, PISA_EXAM_7, PISA_EXAM_8 } from "../constants/pisaQuestions";
 import { REVISION_5TH_GRADE_BANK } from "../constants/revisionQuestions";
+import { GRADE_6_BANK } from "../constants/grade6Questions";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export const generateQuestions = async (topic: string, grade: number, type: 'review' | 'standard' | 'exam'): Promise<Question[]> => {
-  // Caso seja a Revisão Inicial do 6º Ano (Habilidades do 5º Ano)
+export const generateQuestions = async (topic: string, grade: number, type: 'review' | 'standard' | 'exam', bnccCode?: string): Promise<Question[]> => {
+  // 1. Caso seja a Revisão Inicial do 6º Ano (Habilidades do 5º Ano)
   if (type === 'review' && grade === 6) {
     return REVISION_5TH_GRADE_BANK.map((q, i) => ({
       ...q,
@@ -15,7 +16,7 @@ export const generateQuestions = async (topic: string, grade: number, type: 'rev
     }));
   }
 
-  // Caso seja Simulado PISA (Exames)
+  // 2. Caso seja Simulado PISA (Exames)
   if (type === 'exam') {
     let bank: Omit<Question, 'id'>[] = [];
     if (grade === 6) bank = PISA_EXAM_6;
@@ -29,9 +30,17 @@ export const generateQuestions = async (topic: string, grade: number, type: 'rev
     }));
   }
 
-  // Caso padrão: Gerar via IA Gemini
+  // 3. Caso seja uma Habilidade do 6º Ano com banco fixo (EF06CIxx)
+  if (grade === 6 && bnccCode && GRADE_6_BANK[bnccCode]) {
+    return GRADE_6_BANK[bnccCode].map((q, i) => ({
+      ...q,
+      id: `g6-fixed-${bnccCode}-${i}`
+    }));
+  }
+
+  // 4. Caso padrão: Gerar via IA Gemini (para 7º, 8º, 9º anos ou habilidades não mapeadas)
   try {
-    const prompt = `Como um especialista em pedagogia de Ciências, crie 5 questões de múltipla escolha sobre ${topic} para alunos do ${grade}º ano. Siga rigorosamente a BNCC e retorne em formato JSON.`;
+    const prompt = `Como um especialista em pedagogia de Ciências, crie 10 questões de múltipla escolha fáceis (objetivas, 4 alternativas) sobre a habilidade BNCC ${bnccCode || topic} para alunos do ${grade}º ano. O objetivo é preparar o aluno para a aula do dia seguinte. Retorne em formato JSON.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -60,7 +69,8 @@ export const generateQuestions = async (topic: string, grade: number, type: 'rev
     return data.map((q: any, i: number) => ({
       ...q,
       id: `gen-${Date.now()}-${i}`,
-      type: QuestionType.MULTIPLE_CHOICE
+      type: QuestionType.MULTIPLE_CHOICE,
+      bnccCode: bnccCode
     }));
   } catch (error) {
     console.error("Erro ao gerar questões:", error);

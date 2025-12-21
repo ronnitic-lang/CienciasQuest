@@ -49,8 +49,13 @@ const Quiz: React.FC = () => {
     const loadQuiz = async () => {
       if (unit) {
         setLoading(true);
-        // Busca questões baseadas no tipo (IA, Banco PISA ou Banco de Revisão)
-        const rawQuestions = await generateQuestions(unit.description, unit.grade, unit.type || 'standard');
+        // Busca questões baseadas no tipo e código BNCC (IA ou Banco Fixo)
+        const rawQuestions = await generateQuestions(
+            unit.description, 
+            unit.grade, 
+            unit.type || 'standard',
+            unit.title.startsWith('EF') ? unit.title : undefined // Passa o código BNCC como título se aplicável
+        );
         
         // Aplica embaralhamento de alternativas para cada questão (Anti-Cola)
         const shuffled = rawQuestions.map(q => shuffleOptions(q));
@@ -82,7 +87,7 @@ const Quiz: React.FC = () => {
       setIsAnswered(false);
     } else {
       setShowResult(true);
-      const finalXp = score * (isPisa ? 20 : 10); // Prova PISA dá o dobro de XP
+      const finalXp = score * (isPisa ? 20 : 10);
       addXp(finalXp);
     }
   };
@@ -91,11 +96,11 @@ const Quiz: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
         <Mascot size={200} />
-        <p className="text-xl font-black text-gray-700">
-          {isPisa ? 'Carregando Simulado PISA 2025...' : isReview ? 'Preparando revisão do 5º Ano...' : 'A Coruja está preparando suas questões...'}
+        <p className="text-xl font-black text-gray-700 text-center px-4">
+          {isPisa ? 'Carregando Simulado PISA 2025...' : isReview ? 'Preparando revisão do 5º Ano...' : `Preparando atividade para ${unit?.title}...`}
         </p>
         <p className="text-sm text-gray-400 font-bold max-w-xs text-center">
-            {isPisa ? 'Prepare-se! Este teste avalia habilidades complexas de interpretação científica.' : isReview ? 'Vamos relembrar os conceitos fundamentais para começar o 6º ano com tudo!' : 'Usando IA para gerar conteúdo único baseado na BNCC.'}
+            {isPisa ? 'Prepare-se! Este teste avalia habilidades complexas.' : isReview ? 'Vamos relembrar conceitos fundamentais!' : 'Prepare-se para a aula de amanhã com estes conceitos básicos.'}
         </p>
       </div>
     );
@@ -109,11 +114,11 @@ const Quiz: React.FC = () => {
                 {performance >= 70 ? <Trophy size={48} /> : <CheckCircle size={48} />}
             </div>
             
-            <h2 className="text-4xl font-black text-gray-800">
-                {isPisa ? 'Simulado PISA Concluído!' : isReview ? 'Revisão Finalizada!' : 'Missão Cumprida!'}
+            <h2 className="text-4xl font-black text-gray-800 px-4">
+                {isPisa ? 'Simulado PISA Concluído!' : isReview ? 'Revisão Finalizada!' : 'Treinamento Concluído!'}
             </h2>
             
-            <div className="bg-white p-8 rounded-3xl shadow-xl border-b-8 border-gray-100 w-full max-w-md space-y-4">
+            <div className="bg-white p-8 rounded-3xl shadow-xl border-b-8 border-gray-100 w-full max-w-md space-y-4 mx-4">
                 <div className="flex justify-between items-center">
                     <span className="font-black text-gray-400 uppercase text-xs tracking-widest">Desempenho</span>
                     <span className="font-black text-2xl text-primary">{score}/{questions.length}</span>
@@ -129,7 +134,7 @@ const Quiz: React.FC = () => {
 
             <button 
                onClick={() => navigate('/dashboard')}
-               className="w-full max-w-md bg-secondary hover:bg-green-600 text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-green-700 transition-all active:translate-y-1"
+               className="w-full max-w-md bg-secondary hover:bg-green-600 text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-green-700 transition-all active:translate-y-1 mx-4"
             >
                 VOLTAR PARA A TRILHA
             </button>
@@ -141,7 +146,7 @@ const Quiz: React.FC = () => {
   const progress = ((currentIdx) / questions.length) * 100;
 
   return (
-    <div className="max-w-2xl mx-auto pb-32">
+    <div className="max-w-2xl mx-auto pb-32 px-4">
       {/* Progress Bar */}
       <div className="flex items-center gap-4 mb-8">
         <button onClick={() => navigate('/dashboard')} className="text-gray-400 font-black text-sm">SAIR</button>
@@ -199,7 +204,7 @@ const Quiz: React.FC = () => {
       </div>
 
       {/* Bottom Action Bar */}
-      <div className={`fixed bottom-0 left-0 right-0 p-6 border-t bg-white/80 backdrop-blur-md z-50 transition-all duration-300 ${isAnswered ? 'h-48' : 'h-24'}`}>
+      <div className={`fixed bottom-0 left-0 right-0 p-6 border-t bg-white/80 backdrop-blur-md z-50 transition-all duration-300 ${isAnswered ? 'h-48 md:h-24' : 'h-24'}`}>
          <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
             {isAnswered && (
                 <div className={`flex-1 w-full p-4 rounded-2xl animate-fade-in ${selectedOption === currentQ.correctAnswer ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
