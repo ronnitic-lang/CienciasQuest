@@ -118,18 +118,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = (email: string, role: UserRole, password?: string) => {
+    // Verificação de Administrador com as novas credenciais fornecidas
     if (role === UserRole.ADMIN) {
-      if (email === 'Ronni' && password === "%tGb<>:5ioip!'2à") {
-        const adminUser: User = { id: 'admin-01', name: 'Ronni (Admin)', email: 'ronnitic@gmail.com', role: UserRole.ADMIN, status: 'active', isVerified: true };
+      if (email === 'ronnitic@gmail.com' && password === "%tGb<>:5ioip!'2à+=") {
+        const adminUser: User = { 
+            id: 'admin-master', 
+            name: 'Ronni (Admin)', 
+            email: 'ronnitic@gmail.com', 
+            role: UserRole.ADMIN, 
+            status: 'active', 
+            isVerified: true 
+        };
         setUser(adminUser);
         localStorage.setItem('cq_current_user', JSON.stringify(adminUser));
         return { success: true };
       }
       return { success: false, message: 'Usuário ou senha administrativa inválidos.' };
     }
+
+    // Login de Alunos e Professores
     const foundUser = allUsers.find(u => u.email === email && u.role === role);
     if (!foundUser) return { success: false, message: 'Usuário não encontrado.' };
     if (foundUser.role === UserRole.TEACHER && foundUser.status === 'pending') return { success: false, message: 'Cadastro em análise.' };
+    
     setUser(foundUser);
     localStorage.setItem('cq_current_user', JSON.stringify(foundUser));
     return { success: true };
