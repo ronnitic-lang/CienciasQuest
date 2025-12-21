@@ -85,7 +85,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <header className="md:hidden h-16 bg-white border-b flex items-center justify-between px-4 sticky top-0 z-40">
            <span className="text-xl font-extrabold text-secondary">Ciencias<span className="text-primary">Quest</span></span>
            <div className="flex items-center gap-2">
-             {user.role !== UserRole.ADMIN && <span className="font-bold text-accent">{user.xp || 0} XP</span>}
+             {/* Somente alunos pontuam e exibem XP */}
+             {user.role === UserRole.STUDENT && <span className="font-bold text-accent">{user.xp || 0} XP</span>}
              {user.avatarConfig && <Avatar config={user.avatarConfig} size={32} />}
            </div>
         </header>

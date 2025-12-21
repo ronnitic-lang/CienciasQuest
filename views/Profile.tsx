@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/Avatar';
 import { AvatarConfig, UserRole } from '../types';
-import { Save, Sparkles, User, Check } from 'lucide-react';
+import { Save, Sparkles, User, Check, Star } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const { user, updateAvatar, updateUser } = useAuth();
@@ -44,19 +44,24 @@ const Profile: React.FC = () => {
                  <p className="text-gray-400 font-bold mb-4 uppercase tracking-widest text-xs">
                      {user?.role === UserRole.STUDENT ? 'ALUNO(A)' : 'PROFESSOR(A)'}
                  </p>
-                 <div className="bg-blue-50 p-4 rounded-2xl">
-                    <p className="text-primary font-black text-2xl">{user?.xp || 0} XP</p>
-                 </div>
+                 
+                 {/* Somente Alunos exibem Card de XP */}
+                 {user?.role === UserRole.STUDENT && (
+                    <div className="bg-blue-50 p-4 rounded-2xl flex items-center justify-center gap-2">
+                        <Star className="text-accent" fill="currentColor" size={20} />
+                        <p className="text-primary font-black text-2xl">{user?.xp || 0} XP</p>
+                    </div>
+                 )}
             </div>
         </div>
 
         <div className="lg:col-span-2 space-y-8">
             <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100">
                 <h3 className="text-xs font-black text-gray-400 uppercase mb-4 tracking-widest flex items-center gap-2">
-                    <User size={14} /> Informações Básicas
+                    <User size={14} /> Informações do {user?.role === UserRole.TEACHER ? 'Docente' : 'Estudante'}
                 </h3>
                 <div>
-                    <label className="block text-gray-600 font-bold mb-2 text-xs">Seu Nome (Visível para Alunos/Direção)</label>
+                    <label className="block text-gray-600 font-bold mb-2 text-xs">Nome de Exibição</label>
                     <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-100 font-bold focus:border-primary outline-none" />
                 </div>
             </div>
@@ -109,7 +114,7 @@ const Profile: React.FC = () => {
                     )}
                 </div>
 
-                <button onClick={handleSave} className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-blue-700 flex items-center justify-center gap-2">
+                <button onClick={handleSave} className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-blue-700 flex items-center justify-center gap-2 transition-transform active:translate-y-1">
                     <Save size={24} /> SALVAR ALTERAÇÕES
                 </button>
             </div>
