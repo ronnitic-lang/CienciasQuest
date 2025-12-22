@@ -17,9 +17,12 @@ const Avatar: React.FC<AvatarProps> = ({ config, size = 100, className = '' }) =
       className={`rounded-full bg-blue-100 border-4 border-white shadow-lg ${className}`}
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* LAYER 0: Back Hair */}
+      {/* LAYER 0: Back Hair (Background part of the hair) */}
       {config.hairStyle === 'long' && (
-         <path d="M40,90 L40,175 Q100,195 160,175 L160,90 Z" fill={config.hairColor} />
+         <path d="M45,90 L45,185 Q100,205 155,185 L155,90 Z" fill={config.hairColor} />
+      )}
+      {config.hairStyle === 'bob' && (
+         <path d="M45,90 L45,155 Q100,165 155,155 L155,90 Z" fill={config.hairColor} />
       )}
       {config.hairStyle === 'puffs' && (
          <g>
@@ -52,21 +55,13 @@ const Avatar: React.FC<AvatarProps> = ({ config, size = 100, className = '' }) =
         <path d="M80,110 Q90,105 100,110 Q110,105 120,110 L120,115 Q100,110 80,115 Z" fill={config.hairColor} />
       )}
 
-      {/* LAYER 4: Frontal Hair (Ensuring it covers the forehead) */}
-      {(config.hairStyle === 'short' || config.hairStyle === 'long' || config.hairStyle === 'puffs') && (
-        <path d="M50,90 Q50,30 100,30 T150,90 Q150,115 130,100 Q100,70 70,100 Q50,115 50,90 Z" fill={config.hairColor} />
+      {/* LAYER 4: Frontal Hair / Fringe */}
+      {(config.hairStyle === 'short' || config.hairStyle === 'long' || config.hairStyle === 'puffs' || config.hairStyle === 'bob') && (
+        <path d="M50,90 Q50,30 100,30 T150,90 Q150,115 130,105 Q100,85 70,105 Q50,115 50,90 Z" fill={config.hairColor} />
       )}
       
       {config.hairStyle === 'fade' && (
         <path d="M55,70 Q100,35 145,70 L145,85 Q100,75 55,85 Z" fill={config.hairColor} />
-      )}
-      
-      {config.hairStyle === 'bob' && (
-         <g>
-            <path d="M40,85 L35,145 Q35,165 75,145 L75,85 Z" fill={config.hairColor} />
-            <path d="M160,85 L165,145 Q165,165 125,145 L125,85 Z" fill={config.hairColor} />
-            <path d="M50,90 Q50,30 100,30 T150,90 Q150,110 130,95 Q100,60 70,95 Q50,110 50,90 Z" fill={config.hairColor} />
-         </g>
       )}
 
       {/* LAYER 5: Face Features */}
