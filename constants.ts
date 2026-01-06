@@ -18,7 +18,6 @@ export const BRAZIL_CITIES: Record<string, string[]> = {
   'CE': ['Caucaia', 'Fortaleza', 'Maracanaú', 'Sobral', 'Juazeiro do Norte'],
   'SP': ['São Paulo', 'Campinas', 'Santos'],
   'RJ': ['Rio de Janeiro', 'Niterói'],
-  // Outras cidades omitidas para brevidade, mas o sistema suporta todas
 };
 
 export const MOCK_SCHOOLS = [
@@ -43,6 +42,24 @@ const getCurriculum = (): Unit[] => {
     });
 
     topics.forEach((topic, index) => {
+      // Adiciona Gincana a cada bimestre (estimado por blocos de 4-5 habilidades)
+      if (index > 0 && index % 5 === 0) {
+          const bimester = Math.ceil(index / 5) as 1 | 2 | 3 | 4;
+          if (bimester <= 4) {
+            units.push({
+              id: `g${grade}-gincana-${bimester}`,
+              title: `GINCANA ${bimester}º BIMESTRE`,
+              description: `Desafio Passa ou Repassa: Matéria, Vida e Universo!`,
+              grade: grade,
+              bnccCodes: [],
+              isLocked: true,
+              color: 'bg-purple-600',
+              type: 'gincana',
+              bimester
+            });
+          }
+      }
+
       units.push({
         id: `g${grade}-${topic.code}`,
         title: topic.code,

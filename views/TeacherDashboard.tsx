@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { 
   Users, BookOpen, AlertCircle, Building, Check, PlusCircle, 
   GraduationCap, X, Trophy, RefreshCw, Search, ChevronRight, 
-  Trash2, ToggleLeft, ToggleRight, Clock, Edit3, Save 
+  Trash2, ToggleLeft, ToggleRight, Clock, Edit3, Save, Zap
 } from 'lucide-react';
 import { MOCK_UNITS, CLASSES, SHIFTS } from '../constants';
 import { useAuth } from '../context/AuthContext';
@@ -267,7 +267,7 @@ const TeacherDashboard: React.FC = () => {
                           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                           <input 
                             type="text" 
-                            placeholder="Buscar BNCC ou tema..." 
+                            placeholder="Buscar tema ou gincana..." 
                             value={curriculumSearch}
                             onChange={(e) => setCurriculumSearch(e.target.value)}
                             className="pl-12 pr-4 py-3 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold w-full md:w-64 transition-all shadow-sm"
@@ -279,19 +279,21 @@ const TeacherDashboard: React.FC = () => {
                       {filteredCurriculum.map((unit) => {
                           const isUnlocked = unlockedUnitIds.includes(unit.id);
                           const isReview = unit.type === 'review';
+                          const isGincana = unit.type === 'gincana';
 
                           return (
                             <div key={unit.id} className={`p-5 rounded-3xl border-2 transition-all flex items-center justify-between gap-4 ${
                                 isUnlocked ? 'bg-white border-blue-50 shadow-sm' : 'bg-gray-50/50 border-gray-50 opacity-60'
-                            }`}>
+                            } ${isGincana ? 'border-purple-200' : ''}`}>
                                 <div className="flex items-center gap-4 flex-1">
                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-xs ${unit.color}`}>
-                                        {unit.type === 'review' ? <RefreshCw size={20} /> : unit.title.replace('EF', '')}
+                                        {isReview ? <RefreshCw size={20} /> : isGincana ? <Zap size={20} fill="currentColor"/> : unit.title.replace('EF', '')}
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{unit.title}</span>
                                             {isReview && <span className="text-[8px] font-black bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-md">PADRÃO</span>}
+                                            {isGincana && <span className="text-[8px] font-black bg-purple-100 text-purple-700 px-2 py-0.5 rounded-md">GINCANA</span>}
                                         </div>
                                         <h3 className="font-bold text-gray-800 text-sm leading-tight">{unit.description}</h3>
                                     </div>
@@ -302,7 +304,7 @@ const TeacherDashboard: React.FC = () => {
                                         onClick={() => toggleUnitLock(unit.id)}
                                         disabled={isReview} 
                                         className={`p-1 rounded-full transition-all ${
-                                            isUnlocked ? 'text-secondary' : 'text-gray-300'
+                                            isUnlocked ? (isGincana ? 'text-purple-600' : 'text-secondary') : 'text-gray-300'
                                         } ${isReview ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110 active:scale-95'}`}
                                     >
                                         {isUnlocked ? <ToggleRight size={44} /> : <ToggleLeft size={44} />}

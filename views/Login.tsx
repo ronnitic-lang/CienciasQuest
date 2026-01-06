@@ -8,11 +8,11 @@ import {
   Building, GraduationCap, CheckCircle2, ChevronRight, X, 
   AlertTriangle, ArrowLeft, Shield, FileText 
 } from 'lucide-react';
-import { CLASSES, SHIFTS, BRAZIL_STATES, BRAZIL_CITIES } from '../constants';
+import { CLASSES, SHIFTS, BRAZIL_STATES } from '../constants';
 import { isProfane } from '../utils/security';
 
 const Login: React.FC = () => {
-  const { register, login, allUsers, schoolsList } = useAuth();
+  const { register, login, allUsers, schoolsList, citiesList } = useAuth();
   const navigate = useNavigate();
   
   const [step, setStep] = useState(1); 
@@ -27,6 +27,7 @@ const Login: React.FC = () => {
   const [name, setName] = useState('');
   const [state, setState] = useState('');
   const [city, setCity] = useState('');
+  const [customCity, setCustomCity] = useState('');
   const [school, setSchool] = useState('');
   const [customSchool, setCustomSchool] = useState('');
   const [teacherId, setTeacherId] = useState('');
@@ -67,39 +68,32 @@ const Login: React.FC = () => {
       }
 
       if (role === UserRole.TEACHER && !proofFile) {
-        setErrorMsg("Por favor, informe o nome do arquivo ou link do comprovante de vínculo.");
+        setErrorMsg("Por favor, anexe ou indique o link do seu comprovante de vínculo.");
         return;
       }
       
       setIsLoading(true);
       const finalSchool = school === 'other' ? customSchool : school;
+      const finalCity = city === 'other' ? customCity : city;
 
-      register({ 
-        name, email, role, state, city,
+      const regResult = register({ 
+        name, email, role, state, city: finalCity,
         school: finalSchool, grade, classId, shift, teacherId,
         proofFileUrl: proofFile 
       });
       
       setIsLoading(false);
-      setStep(4);
+      if (regResult.success) {
+        setStep(4);
+      } else {
+        setErrorMsg(regResult.message || "Erro no cadastro.");
+      }
   };
 
-  // Filtros de Cadastro (Aluno)
-  const availableSchoolsForCity = useMemo(() => {
-    if (!city) return [];
-    // Encontra professores na cidade e extrai suas escolas vinculadas
-    const cityTeachers = allUsers.filter(u => u.role === UserRole.TEACHER && u.city === city);
-    const schools = cityTeachers.flatMap(t => t.teacherSchools || []);
-    return Array.from(new Set(schools));
-  }, [allUsers, city]);
-
-  const availableTeachersForSchool = useMemo(() => {
-    if (!school) return [];
-    return allUsers.filter(u => 
-      u.role === UserRole.TEACHER && 
-      (u.school === school || u.teacherSchools?.includes(school))
-    );
-  }, [allUsers, school]);
+  const teachersList = useMemo(() => 
+    allUsers.filter(u => u.role === UserRole.TEACHER && u.status === 'active'), 
+    [allUsers]
+  );
 
   // UI Step Logic
   if (step === 1) {
@@ -170,11 +164,11 @@ const Login: React.FC = () => {
                 <form onSubmit={handleRegisterSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nome Completo</label>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nome Completo (Sem abreviações)</label>
                             <input required value={name} onChange={e => setName(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold" placeholder="Ex: João Silva" />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Email</label>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Email Principal</label>
                             <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold" placeholder="seu@email.com" />
                         </div>
                     </div>
@@ -182,29 +176,30 @@ const Login: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Estado</label>
-                            <select required value={state} onChange={e => {setState(e.target.value); setCity(''); setSchool('');}} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold">
+                            <select required value={state} onChange={e => {setState(e.target.value); setCity('');}} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold">
                                 <option value="">Selecione...</option>
                                 {BRAZIL_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cidade</label>
-                            <select required value={city} onChange={e => {setCity(e.target.value); setSchool('');}} disabled={!state} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
+                            <select required value={city} onChange={e => setCity(e.target.value)} disabled={!state} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
                                 <option value="">Selecione...</option>
-                                {state && BRAZIL_CITIES[state]?.map(c => <option key={c} value={c}>{c}</option>)}
+                                {state && citiesList[state]?.map(c => <option key={c} value={c}>{c}</option>)}
+                                {state && <option value="other">+ Adicionar nova cidade</option>}
                             </select>
+                            {city === 'other' && (
+                                <input required value={customCity} onChange={e => setCustomCity(e.target.value)} className="w-full p-4 mt-2 rounded-2xl border-2 border-primary outline-none font-bold animate-fade-in" placeholder="Nome da cidade..." />
+                            )}
                         </div>
                     </div>
 
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Instituição de Ensino</label>
-                        <select required value={school} onChange={e => {setSchool(e.target.value); setTeacherId('');}} disabled={!city} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
+                        <select required value={school} onChange={e => setSchool(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold">
                             <option value="">Selecione sua escola...</option>
-                            {role === UserRole.STUDENT 
-                              ? availableSchoolsForCity.map(s => <option key={s} value={s}>{s}</option>)
-                              : schoolsList.map(s => <option key={s} value={s}>{s}</option>)
-                            }
-                            {city && <option value="other">+ Escola não listada</option>}
+                            {schoolsList.map(s => <option key={s} value={s}>{s}</option>)}
+                            <option value="other">+ Outra instituição</option>
                         </select>
                         {school === 'other' && (
                             <input required value={customSchool} onChange={e => setCustomSchool(e.target.value)} className="w-full p-4 mt-2 rounded-2xl border-2 border-primary outline-none font-bold animate-fade-in" placeholder="Nome completo da escola..." />
@@ -215,9 +210,9 @@ const Login: React.FC = () => {
                         <>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Seu Professor(a)</label>
-                                <select required value={teacherId} onChange={e => setTeacherId(e.target.value)} disabled={!school} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
+                                <select required value={teacherId} onChange={e => setTeacherId(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold">
                                     <option value="">Selecione seu professor...</option>
-                                    {availableTeachersForSchool.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    {teachersList.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                 </select>
                             </div>
 
@@ -250,22 +245,23 @@ const Login: React.FC = () => {
                         <div className="p-6 bg-blue-50 rounded-3xl border-2 border-blue-100 space-y-4">
                             <div className="flex items-center gap-3">
                                 <div className="bg-primary p-2 rounded-lg text-white"><Shield size={20} /></div>
-                                <h3 className="font-black text-primary uppercase text-xs tracking-wider">Verificação de Vínculo</h3>
+                                <h3 className="font-black text-primary uppercase text-xs tracking-wider">Comprovação Docente</h3>
                             </div>
                             <p className="text-[11px] font-bold text-blue-800/70 leading-relaxed">
-                                Para garantir a segurança dos dados, professores devem comprovar vínculo institucional. 
-                                Informe o nome do arquivo enviado ou um link público de consulta.
+                                Para garantir a segurança dos alunos, solicitamos o envio de um comprovante (Foto do Crachá, Contracheque ou link do Diário Oficial).
                             </p>
-                            <input 
-                                required 
-                                value={proofFile} 
-                                onChange={e => setProofFile(e.target.value)} 
-                                className="w-full p-4 rounded-2xl border-2 border-white focus:border-primary outline-none font-bold" 
-                                placeholder="Link do Diário Oficial ou Nome do Arquivo..." 
-                            />
-                            <div className="flex items-center gap-2 text-primary">
-                                <FileText size={16} />
-                                <span className="text-[10px] font-black uppercase">PDF, JPG ou PNG recomendados</span>
+                            <div className="flex flex-col gap-2">
+                                <input 
+                                  required 
+                                  type="text" 
+                                  value={proofFile} 
+                                  onChange={e => setProofFile(e.target.value)} 
+                                  placeholder="Link ou nome do arquivo do comprovante..." 
+                                  className="w-full p-4 rounded-2xl border-2 border-white focus:border-primary outline-none font-bold shadow-sm"
+                                />
+                                <div className="flex items-center gap-2 text-gray-400 text-[10px] uppercase font-black px-2">
+                                    <FileText size={14}/> Formatos aceitos: JPG, PNG, PDF ou Link
+                                </div>
                             </div>
                         </div>
                     )}
@@ -294,11 +290,11 @@ const Login: React.FC = () => {
                 <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center text-secondary mx-auto mb-6">
                     <CheckCircle2 size={64} />
                 </div>
-                <h2 className="text-3xl font-black text-gray-800 mb-4">Sucesso!</h2>
+                <h2 className="text-3xl font-black text-gray-800 mb-4">Cadastro Concluído!</h2>
                 <p className="text-gray-500 font-bold mb-8">
                     {role === UserRole.STUDENT 
-                      ? "Seu perfil foi criado. Agora você pode explorar a trilha do conhecimento!" 
-                      : "Seu cadastro foi enviado para análise. Um administrador validará seus documentos em breve."}
+                      ? "Seu perfil foi criado com sucesso. Agora você pode entrar e começar sua jornada!" 
+                      : "Seu cadastro docente foi enviado para análise. Em breve um administrador aprovará seu acesso."}
                 </p>
                 <button onClick={() => { setStep(2); setMode('login'); }} className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-blue-700 uppercase tracking-widest active:translate-y-1 transition-all">
                     IR PARA LOGIN

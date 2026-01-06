@@ -63,6 +63,7 @@ export interface Question {
   correctAnswer: number | string;
   explanation?: string;
   bnccCode?: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
 }
 
 export interface Unit {
@@ -73,7 +74,8 @@ export interface Unit {
   bnccCodes: string[];
   isLocked: boolean;
   color: string;
-  type?: 'review' | 'standard' | 'exam';
+  type?: 'review' | 'standard' | 'exam' | 'gincana';
+  bimester?: 1 | 2 | 3 | 4;
 }
 
 export interface AnalyticsData {

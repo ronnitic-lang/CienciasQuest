@@ -10,7 +10,8 @@ import { GRADE_9_BANK } from "../constants/grade9Questions";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export const generateQuestions = async (topic: string, grade: number, type: 'review' | 'standard' | 'exam', bnccCode?: string): Promise<Question[]> => {
+// Updated type parameter to include 'gincana'
+export const generateQuestions = async (topic: string, grade: number, type: 'review' | 'standard' | 'exam' | 'gincana', bnccCode?: string): Promise<Question[]> => {
   // 1. Caso seja a Revisão Inicial
   if (type === 'review') {
     if (grade === 6) {
@@ -59,7 +60,7 @@ export const generateQuestions = async (topic: string, grade: number, type: 'rev
     }
   }
 
-  // 4. Caso padrão: Gerar via IA Gemini
+  // 4. Caso padrão: Gerar via IA Gemini (usado para 'standard' e 'gincana')
   try {
     const prompt = `Como um especialista em pedagogia de Ciências da Natureza, crie 10 questões de múltipla escolha fáceis (objetivas, 4 alternativas) sobre a habilidade BNCC ${bnccCode || topic} para alunos do ${grade}º ano. O objetivo é preparar o aluno para a aula do dia seguinte. Retorne em formato JSON.`;
 
