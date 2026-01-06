@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, Lock, Play, RefreshCw, Award } from 'lucide-react';
+import { Star, Lock, Play, RefreshCw, Award, Zap } from 'lucide-react';
 import { MOCK_UNITS } from '../constants';
 import { useAuth } from '../context/AuthContext';
 import { Unit } from '../types';
@@ -72,7 +72,7 @@ const StudentMap: React.FC = () => {
           }
           
           // Icon selection
-          const Icon = unit.type === 'review' ? RefreshCw : (unit.type === 'exam' ? Award : Play);
+          const Icon = unit.type === 'review' ? RefreshCw : (unit.type === 'exam' ? Award : unit.type === 'gincana' ? Zap : Play);
           const size = unit.type === 'exam' ? 'w-28 h-28' : 'w-24 h-24';
           const iconSize = unit.type === 'exam' ? 48 : 32;
 
@@ -107,7 +107,9 @@ const StudentMap: React.FC = () => {
                 {unit.title.startsWith('EF') ? (
                    <span className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-1">{unit.title}</span>
                 ) : (
-                   <span className="block text-xs font-black text-yellow-600 uppercase tracking-wider mb-1">{unit.type === 'review' ? 'REVISÃO' : 'TESTE FINAL'}</span>
+                   <span className="block text-xs font-black text-yellow-600 uppercase tracking-wider mb-1">
+                       {unit.type === 'review' ? 'REVISÃO' : unit.type === 'gincana' ? 'DESAFIO GINCANA' : 'TESTE FINAL'}
+                   </span>
                 )}
                 <h3 className="font-bold text-gray-800 text-sm leading-tight">{unit.description}</h3>
               </div>
@@ -121,8 +123,8 @@ const StudentMap: React.FC = () => {
 
       {/* Footer Disclaimer */}
       <footer className="w-full text-center p-8 text-gray-400 text-xs border-t mt-auto">
-        <p className="font-bold mb-1">Baseado na BNCC e Currículo Municipal de Caucaia-CE</p>
-        <p>Desenvolvido para o ensino de Ciências da Natureza.</p>
+        <p className="font-bold mb-1">Baseado na BNCC, DCRC e Currículo Municipal de Caucaia-CE</p>
+        <p>Desenvolvido por: Ciências Online 2026</p>
       </footer>
     </div>
   );

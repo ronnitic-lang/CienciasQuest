@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
 import { useNavigate } from 'react-router-dom';
@@ -12,7 +12,7 @@ import { CLASSES, SHIFTS, BRAZIL_STATES } from '../constants';
 import { isProfane } from '../utils/security';
 
 const Login: React.FC = () => {
-  const { register, login, allUsers, schoolsList, citiesList } = useAuth();
+  const { register, login, allUsers, schoolsList, citiesList, activeClassrooms } = useAuth();
   const navigate = useNavigate();
   
   const [step, setStep] = useState(1); 
@@ -90,10 +90,40 @@ const Login: React.FC = () => {
       }
   };
 
-  const teachersList = useMemo(() => 
-    allUsers.filter(u => u.role === UserRole.TEACHER && u.status === 'active'), 
-    [allUsers]
-  );
+  // Filtros Dinâmicos baseados nas ações dos Professores
+  const availableSchoolsForCity = useMemo(() => {
+    if (!city) return [];
+    // Busca escolas que possuem professores ativos na cidade ou turmas criadas
+    const cityTeachers = allUsers.filter(u => u.role === UserRole.TEACHER && u.city === city && u.status === 'active');
+    const schools = cityTeachers.flatMap(t => t.teacherSchools || []);
+    return Array.from(new Set(schools)).sort();
+  }, [allUsers, city]);
+
+  const availableTeachersForSchool = useMemo(() => {
+    if (!school) return [];
+    return allUsers.filter(u => 
+      u.role === UserRole.TEACHER && 
+      u.status === 'active' && 
+      (u.school === school || u.teacherSchools?.includes(school))
+    );
+  }, [allUsers, school]);
+
+  const teacherRooms = useMemo(() => {
+    if (!teacherId || !school) return [];
+    return activeClassrooms.filter(c => c.teacherId === teacherId && c.school === school);
+  }, [activeClassrooms, teacherId, school]);
+
+  const availableGrades = useMemo(() => {
+    return Array.from(new Set(teacherRooms.map(c => c.grade))).sort();
+  }, [teacherRooms]);
+
+  const availableClasses = useMemo(() => {
+    return Array.from(new Set(teacherRooms.filter(c => c.grade === grade).map(c => c.classId))).sort();
+  }, [teacherRooms, grade]);
+
+  const availableShifts = useMemo(() => {
+    return Array.from(new Set(teacherRooms.filter(c => c.grade === grade && c.classId === classId).map(c => c.shift))).sort();
+  }, [teacherRooms, grade, classId]);
 
   // UI Step Logic
   if (step === 1) {
@@ -164,7 +194,7 @@ const Login: React.FC = () => {
                 <form onSubmit={handleRegisterSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nome Completo (Sem abreviações)</label>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nome Completo</label>
                             <input required value={name} onChange={e => setName(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold" placeholder="Ex: João Silva" />
                         </div>
                         <div className="space-y-1">
@@ -183,10 +213,10 @@ const Login: React.FC = () => {
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cidade</label>
-                            <select required value={city} onChange={e => setCity(e.target.value)} disabled={!state} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
+                            <select required value={city} onChange={e => {setCity(e.target.value); setSchool('');}} disabled={!state} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
                                 <option value="">Selecione...</option>
                                 {state && citiesList[state]?.map(c => <option key={c} value={c}>{c}</option>)}
-                                {state && <option value="other">+ Adicionar nova cidade</option>}
+                                {state && role === UserRole.TEACHER && <option value="other">+ Adicionar nova cidade</option>}
                             </select>
                             {city === 'other' && (
                                 <input required value={customCity} onChange={e => setCustomCity(e.target.value)} className="w-full p-4 mt-2 rounded-2xl border-2 border-primary outline-none font-bold animate-fade-in" placeholder="Nome da cidade..." />
@@ -196,13 +226,19 @@ const Login: React.FC = () => {
 
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Instituição de Ensino</label>
-                        <select required value={school} onChange={e => setSchool(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold">
+                        <select required value={school} onChange={e => {setSchool(e.target.value); setTeacherId('');}} disabled={!city} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
                             <option value="">Selecione sua escola...</option>
-                            {schoolsList.map(s => <option key={s} value={s}>{s}</option>)}
-                            <option value="other">+ Outra instituição</option>
+                            {role === UserRole.STUDENT 
+                                ? availableSchoolsForCity.map(s => <option key={s} value={s}>{s}</option>)
+                                : schoolsList.map(s => <option key={s} value={s}>{s}</option>)
+                            }
+                            {city && role === UserRole.TEACHER && <option value="other">+ Outra instituição</option>}
                         </select>
-                        {school === 'other' && (
+                        {school === 'other' && role === UserRole.TEACHER && (
                             <input required value={customSchool} onChange={e => setCustomSchool(e.target.value)} className="w-full p-4 mt-2 rounded-2xl border-2 border-primary outline-none font-bold animate-fade-in" placeholder="Nome completo da escola..." />
+                        )}
+                        {role === UserRole.STUDENT && city && availableSchoolsForCity.length === 0 && (
+                            <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">Nenhuma escola com professor cadastrado nesta cidade.</p>
                         )}
                     </div>
 
@@ -210,34 +246,38 @@ const Login: React.FC = () => {
                         <>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Seu Professor(a)</label>
-                                <select required value={teacherId} onChange={e => setTeacherId(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold">
+                                <select required value={teacherId} onChange={e => setTeacherId(e.target.value)} disabled={!school} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
                                     <option value="">Selecione seu professor...</option>
-                                    {teachersList.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    {availableTeachersForSchool.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                 </select>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ano Escolar</label>
-                                    <select value={grade} onChange={e => setGrade(Number(e.target.value))} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold">
-                                        {[6, 7, 8, 9].map(g => <option key={g} value={g}>{g}º Ano</option>)}
+                                    <select required value={grade} onChange={e => setGrade(Number(e.target.value))} disabled={!teacherId} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
+                                        <option value="">Anos...</option>
+                                        {availableGrades.map(g => <option key={g} value={g}>{g}º Ano</option>)}
                                     </select>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Turma</label>
-                                    <select required value={classId} onChange={e => setClassId(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold">
-                                        <option value="">Selecionar...</option>
-                                        {CLASSES.map(c => <option key={c} value={c}>Turma {c}</option>)}
+                                    <select required value={classId} onChange={e => setClassId(e.target.value)} disabled={!grade} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
+                                        <option value="">Turma...</option>
+                                        {availableClasses.map(c => <option key={c} value={c}>{c}</option>)}
                                     </select>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Turno</label>
-                                    <select required value={shift} onChange={e => setShift(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold">
-                                        <option value="">Selecionar...</option>
-                                        {SHIFTS.map(s => <option key={s} value={s}>{s}</option>)}
+                                    <select required value={shift} onChange={e => setShift(e.target.value)} disabled={!classId} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
+                                        <option value="">Turno...</option>
+                                        {availableShifts.map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
                                 </div>
                             </div>
+                            {teacherId && teacherRooms.length === 0 && (
+                                <p className="text-[9px] text-accent font-black uppercase bg-yellow-50 p-3 rounded-xl border border-yellow-100">Este professor ainda não configurou as turmas em seu painel.</p>
+                            )}
                         </>
                     )}
 
