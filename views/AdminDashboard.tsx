@@ -2,12 +2,11 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
-// Fixed: Added BookOpen to the lucide-react imports
 import { 
   User as UserIcon, CheckCircle, XCircle, Trash2, Building, 
   Users, Search, ShieldAlert, FileText, Check, X, Edit3, 
   Ban, ShieldCheck, Mail, MapPin, ChevronDown, ChevronUp, GraduationCap,
-  BookOpen
+  BookOpen, ExternalLink
 } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
@@ -18,9 +17,7 @@ const AdminDashboard: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState<'pending' | 'users' | 'schools'>('pending');
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingSchool, setEditingSchool] = useState<string | null>(null);
   const [expandedSchool, setExpandedSchool] = useState<string | null>(null);
-  const [newSchoolName, setNewSchoolName] = useState('');
 
   const pendingTeachers = allUsers.filter(u => u.role === UserRole.TEACHER && u.status === 'pending');
   
@@ -38,13 +35,21 @@ const AdminDashboard: React.FC = () => {
       .sort((a,b) => a.localeCompare(b));
   }, [schoolsList, searchTerm]);
 
+  const getSchoolMembers = (schoolName: string) => {
+      const members = allUsers.filter(u => u.school === schoolName || u.teacherSchools?.includes(schoolName));
+      return {
+          teachers: members.filter(m => m.role === UserRole.TEACHER),
+          students: members.filter(m => m.role === UserRole.STUDENT)
+      };
+  };
+
   return (
     <div className="pb-20 animate-fade-in">
       <div className="bg-dark text-white p-8 rounded-3xl mb-8 shadow-xl relative overflow-hidden">
           <div className="relative z-10">
             <h1 className="text-4xl font-black mb-2 tracking-tight">Painel de Controle</h1>
             <p className="opacity-70 font-bold uppercase text-[10px] tracking-widest flex items-center gap-2">
-                <ShieldCheck size={14} /> Administração de Segurança CienciasQuest
+                <ShieldCheck size={14} /> Segurança e Moderação CienciasQuest
             </p>
           </div>
           <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12">
@@ -86,14 +91,17 @@ const AdminDashboard: React.FC = () => {
                           <div>
                               <p className="font-black text-xl text-gray-800 leading-none mb-1">{t.name}</p>
                               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t.school} • {t.city}/{t.state}</p>
-                              <div className="mt-2 flex gap-2">
+                              <div className="mt-2 flex items-center gap-2">
                                   <span className="bg-blue-100 text-blue-600 text-[8px] font-black px-2 py-1 rounded-lg uppercase">SOLICITAÇÃO DOCENTE</span>
+                                  <span className="bg-yellow-100 text-yellow-600 text-[8px] font-black px-2 py-1 rounded-lg uppercase flex items-center gap-1">
+                                      <ExternalLink size={8}/> {t.proofFileUrl || 'Sem comprovante'}
+                                  </span>
                               </div>
                           </div>
                       </div>
                       <div className="flex gap-2 w-full md:w-auto">
                           <button onClick={() => approveTeacher(t.id)} className="flex-1 md:flex-none px-8 py-4 bg-secondary text-white font-black text-xs rounded-2xl border-b-4 border-green-700 hover:brightness-105 active:translate-y-1 transition-all flex items-center justify-center gap-2">
-                            <Check size={18} /> VALIDAR
+                            <Check size={18} /> APROVAR
                           </button>
                           <button onClick={() => deleteUser(t.id)} className="p-4 bg-red-50 text-red-500 rounded-2xl hover:bg-red-100 transition-colors">
                             <Trash2 size={24} />
@@ -137,63 +145,92 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'schools' && (
               <div className="grid grid-cols-1 gap-4">
                   {filteredSchools.map(school => {
+                      const { teachers, students } = getSchoolMembers(school);
                       const isExpanded = expandedSchool === school;
-                      const schoolUsers = allUsers.filter(u => u.school === school || u.teacherSchools?.includes(school));
-                      const teachers = schoolUsers.filter(u => u.role === UserRole.TEACHER);
-                      const students = schoolUsers.filter(u => u.role === UserRole.STUDENT);
-
+                      
                       return (
-                          <div key={school} className={`bg-white border-2 rounded-3xl transition-all overflow-hidden ${isExpanded ? 'border-accent shadow-xl' : 'border-gray-100 hover:border-accent/50'}`}>
-                              <div className="p-6 flex items-center justify-between cursor-pointer" onClick={() => setExpandedSchool(isExpanded ? null : school)}>
+                          <div key={school} className={`bg-white rounded-3xl border-2 transition-all overflow-hidden ${isExpanded ? 'border-accent shadow-xl ring-4 ring-accent/10' : 'border-gray-100 hover:border-gray-200'}`}>
+                              <button 
+                                onClick={() => setExpandedSchool(isExpanded ? null : school)}
+                                className="w-full p-6 flex items-center justify-between text-left group"
+                              >
                                   <div className="flex items-center gap-4">
-                                      <div className="bg-accent/10 p-3 rounded-2xl text-accent">
-                                          <Building size={24} />
+                                      <div className={`p-3 rounded-2xl transition-colors ${isExpanded ? 'bg-accent text-white' : 'bg-accent/10 text-accent group-hover:bg-accent/20'}`}>
+                                          <Building size={28} />
                                       </div>
                                       <div>
-                                          <h3 className="font-black text-gray-800 leading-tight">{school}</h3>
-                                          <p className="text-[10px] font-black text-gray-400 uppercase flex items-center gap-2 mt-1">
-                                              <Users size={12} /> {teachers.length} Professor(es) • {students.length} Aluno(s)
+                                          <h3 className="font-black text-gray-800 text-xl leading-tight">{school}</h3>
+                                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mt-1">
+                                              <Users size={12} /> {teachers.length} Professores • {students.length} Alunos
                                           </p>
                                       </div>
                                   </div>
-                                  {isExpanded ? <ChevronUp size={24} className="text-gray-300" /> : <ChevronDown size={24} className="text-gray-300" />}
-                              </div>
+                                  <div className="bg-gray-50 p-2 rounded-full text-gray-300">
+                                    {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+                                  </div>
+                              </button>
 
                               {isExpanded && (
-                                  <div className="px-6 pb-6 pt-2 bg-gray-50/50 border-t border-gray-100 animate-fade-in">
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
+                                  <div className="p-6 bg-gray-50/50 border-t border-gray-100 animate-fade-in space-y-8">
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                          {/* Professores */}
                                           <div>
-                                              <h4 className="text-[10px] font-black text-secondary uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                  <BookOpen size={14} /> Professores Vinculados
-                                              </h4>
+                                              <div className="flex items-center gap-2 mb-4">
+                                                  <div className="bg-secondary p-1.5 rounded-lg text-white"><BookOpen size={14} /></div>
+                                                  <h4 className="text-xs font-black text-gray-700 uppercase tracking-wider">Professores Cadastrados</h4>
+                                              </div>
                                               <div className="space-y-2">
                                                   {teachers.length > 0 ? teachers.map(t => (
-                                                      <div key={t.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center gap-3">
-                                                          <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center text-secondary"><Edit3 size={14} /></div>
-                                                          <span className="font-bold text-sm text-gray-700">{t.name}</span>
+                                                      <div key={t.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between group/user">
+                                                          <div className="flex items-center gap-3">
+                                                              <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center text-secondary font-black text-[10px]">P</div>
+                                                              <div className="leading-none">
+                                                                  <p className="font-bold text-sm text-gray-800">{t.name}</p>
+                                                                  <p className="text-[9px] text-gray-400 font-bold uppercase">{t.email}</p>
+                                                              </div>
+                                                          </div>
                                                       </div>
-                                                  )) : <p className="text-xs italic text-gray-400">Nenhum professor registrado.</p>}
+                                                  )) : <p className="text-xs italic text-gray-400 px-2">Nenhum professor vinculado.</p>}
                                               </div>
                                           </div>
+
+                                          {/* Alunos */}
                                           <div>
-                                              <h4 className="text-[10px] font-black text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                  <GraduationCap size={14} /> Alunos Ativos
-                                              </h4>
+                                              <div className="flex items-center gap-2 mb-4">
+                                                  <div className="bg-primary p-1.5 rounded-lg text-white"><GraduationCap size={14} /></div>
+                                                  <h4 className="text-xs font-black text-gray-700 uppercase tracking-wider">Alunos Ativos</h4>
+                                              </div>
                                               <div className="space-y-2">
                                                   {students.length > 0 ? students.map(s => (
-                                                      <div key={s.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center gap-3">
-                                                          <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-primary font-black text-[10px]">{s.grade}º</div>
-                                                          <span className="font-bold text-sm text-gray-700">{s.name} ({s.classId})</span>
+                                                      <div key={s.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between group/user">
+                                                          <div className="flex items-center gap-3">
+                                                              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-primary font-black text-[10px]">A</div>
+                                                              <div className="leading-none">
+                                                                  <p className="font-bold text-sm text-gray-800">{s.name}</p>
+                                                                  <p className="text-[9px] text-gray-400 font-bold uppercase">{s.grade}º {s.classId} • {s.shift}</p>
+                                                              </div>
+                                                          </div>
                                                       </div>
-                                                  )) : <p className="text-xs italic text-gray-400">Nenhum aluno registrado.</p>}
+                                                  )) : <p className="text-xs italic text-gray-400 px-2">Nenhum aluno cadastrado nesta unidade.</p>}
                                               </div>
                                           </div>
+                                      </div>
+
+                                      <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
+                                          <button onClick={() => deleteSchool(school)} className="flex items-center gap-2 text-red-400 hover:text-red-600 font-black text-[10px] uppercase p-2 hover:bg-red-50 rounded-lg transition-all">
+                                              <Trash2 size={14} /> Remover Escola do Sistema
+                                          </button>
                                       </div>
                                   </div>
                               )}
                           </div>
                       );
                   })}
+                  {filteredSchools.length === 0 && (
+                      <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-100">
+                          <p className="text-gray-400 font-bold italic">Nenhuma instituição encontrada com o termo "{searchTerm}".</p>
+                      </div>
+                  )}
               </div>
           )}
       </div>

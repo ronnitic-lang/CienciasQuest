@@ -42,7 +42,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [schoolsList, setSchoolsList] = useState<string[]>(MOCK_SCHOOLS);
+  const [schoolsList, setSchoolsList] = useState<string[]>([]);
   const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>([]);
   const [unlockedUnitIds, setUnlockedUnitIds] = useState<string[]>([]);
 
@@ -53,9 +53,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const storedClassrooms = localStorage.getItem('cq_active_classrooms');
     const storedLocks = localStorage.getItem('cq_unlocked_units_v2');
 
+    // Inicialização da lista de escolas com as solicitadas se estiver vazia
+    if (storedSchools) {
+      setSchoolsList(JSON.parse(storedSchools));
+    } else {
+      const initialSchools = [
+        ...MOCK_SCHOOLS,
+        'Escola Municipal Paulo Freire',
+        'Colégio Estadual Tiradentes',
+        'Centro Educacional Inovação',
+        'Escola Cora Coralina'
+      ];
+      setSchoolsList(Array.from(new Set(initialSchools)));
+    }
+
+    // Seed professor inicial solicitado: Ronnielle Cabral Rolim
+    const caucaiaSchools = [
+      'Escola Municipal Paulo Freire',
+      'Colégio Estadual Tiradentes',
+      'Centro Educacional Inovação',
+      'Escola Cora Coralina'
+    ];
+
+    const mockTeacher: User = {
+        id: 'prof-ronni',
+        name: 'Ronnielle Cabral Rolim',
+        email: 'ronnielle@cienciasquest.com',
+        role: UserRole.TEACHER,
+        status: 'active',
+        state: 'CE',
+        city: 'Caucaia',
+        school: 'Escola Municipal Paulo Freire',
+        teacherSchools: caucaiaSchools,
+        grade: 6,
+        isVerified: true,
+        proofFileUrl: 'vinculo_confirmado.pdf',
+        avatarConfig: { ...DEFAULT_AVATAR, hairStyle: 'fade' }
+    };
+
+    if (storedAllUsers) {
+        const parsedUsers = JSON.parse(storedAllUsers);
+        if (!parsedUsers.find(u => u.id === 'prof-ronni')) {
+            setAllUsers([...parsedUsers, mockTeacher]);
+        } else {
+            setAllUsers(parsedUsers);
+        }
+    } else {
+        setAllUsers([mockTeacher]);
+    }
+
     if (storedUser) setUser(JSON.parse(storedUser));
-    if (storedAllUsers) setAllUsers(JSON.parse(storedAllUsers));
-    if (storedSchools) setSchoolsList(JSON.parse(storedSchools));
     if (storedClassrooms) setActiveClassrooms(JSON.parse(storedClassrooms));
     
     if (storedLocks) {
@@ -97,6 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       shift: userData.shift,
       teacherId: userData.teacherId,
       isVerified: userData.role === UserRole.ADMIN,
+      proofFileUrl: userData.proofFileUrl,
       xp: 0,
       streak: 1,
       avatarConfig: DEFAULT_AVATAR as AvatarConfig,
@@ -104,6 +152,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setAllUsers(prev => [...prev, newUser]);
+    
+    // Se registrou uma nova escola, adiciona à lista global
+    if (userData.school) {
+      addSchool(userData.school);
+    }
     
     if (newUser.role === UserRole.STUDENT) {
         setUser(newUser);
@@ -140,8 +193,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const foundUser = allUsers.find(u => u.email === email && u.role === role);
     if (!foundUser) return { success: false, message: 'Usuário não encontrado.' };
-    if (foundUser.status === 'blocked') return { success: false, message: 'Sua conta está suspensa. Entre em contato com o suporte.' };
-    if (foundUser.role === UserRole.TEACHER && foundUser.status === 'pending') return { success: false, message: 'Cadastro em análise pela administração.' };
+    if (foundUser.status === 'blocked') return { success: false, message: 'Sua conta está suspensa.' };
+    if (foundUser.role === UserRole.TEACHER && foundUser.status === 'pending') return { success: false, message: 'Cadastro em análise pela moderação.' };
     
     setUser(foundUser);
     localStorage.setItem('cq_current_user', JSON.stringify(foundUser));
@@ -206,8 +259,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addSchool = (schoolName: string) => {
     const normalizedNew = normalizeSchoolName(schoolName);
-    const exists = schoolsList.some(s => normalizeSchoolName(s) === normalizedNew);
-    if (!exists) setSchoolsList(prev => [...prev, schoolName]);
+    setSchoolsList(prev => {
+      const exists = prev.some(s => normalizeSchoolName(s) === normalizedNew);
+      if (!exists) return [...prev, schoolName];
+      return prev;
+    });
   };
 
   const addClassroom = (classroomData: Omit<Classroom, 'id'>) => {
