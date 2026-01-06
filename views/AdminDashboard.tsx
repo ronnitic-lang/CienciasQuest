@@ -1,22 +1,25 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { UserRole, User } from '../types';
+import { UserRole } from '../types';
+// Fixed: Added BookOpen to the lucide-react imports
 import { 
   User as UserIcon, CheckCircle, XCircle, Trash2, Building, 
   Users, Search, ShieldAlert, FileText, Check, X, Edit3, 
-  Ban, ShieldCheck, Mail, MapPin 
+  Ban, ShieldCheck, Mail, MapPin, ChevronDown, ChevronUp, GraduationCap,
+  BookOpen
 } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const { 
     allUsers, schoolsList, approveTeacher, deleteUser, 
-    toggleUserStatus, addSchool, renameSchool, deleteSchool, updateUser 
+    toggleUserStatus, addSchool, renameSchool, deleteSchool 
   } = useAuth();
   
   const [activeTab, setActiveTab] = useState<'pending' | 'users' | 'schools'>('pending');
   const [searchTerm, setSearchTerm] = useState('');
   const [editingSchool, setEditingSchool] = useState<string | null>(null);
+  const [expandedSchool, setExpandedSchool] = useState<string | null>(null);
   const [newSchoolName, setNewSchoolName] = useState('');
 
   const pendingTeachers = allUsers.filter(u => u.role === UserRole.TEACHER && u.status === 'pending');
@@ -49,7 +52,6 @@ const AdminDashboard: React.FC = () => {
           </div>
       </div>
 
-      {/* Navegação de Abas */}
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
           <button onClick={() => setActiveTab('pending')} className={`px-8 py-4 rounded-2xl font-black whitespace-nowrap transition-all border-b-4 ${activeTab === 'pending' ? 'bg-secondary text-white border-green-700 shadow-lg -translate-y-1' : 'bg-white text-gray-400 border-gray-100 hover:bg-gray-50'}`}>
             VALIDAÇÕES ({pendingTeachers.length})
@@ -62,7 +64,6 @@ const AdminDashboard: React.FC = () => {
           </button>
       </div>
 
-      {/* Barra de Busca */}
       <div className="relative mb-8">
         <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400" size={24} />
         <input 
@@ -87,13 +88,12 @@ const AdminDashboard: React.FC = () => {
                               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t.school} • {t.city}/{t.state}</p>
                               <div className="mt-2 flex gap-2">
                                   <span className="bg-blue-100 text-blue-600 text-[8px] font-black px-2 py-1 rounded-lg uppercase">SOLICITAÇÃO DOCENTE</span>
-                                  <span className="bg-gray-100 text-gray-500 text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-widest">AGUARDANDO DOC</span>
                               </div>
                           </div>
                       </div>
                       <div className="flex gap-2 w-full md:w-auto">
                           <button onClick={() => approveTeacher(t.id)} className="flex-1 md:flex-none px-8 py-4 bg-secondary text-white font-black text-xs rounded-2xl border-b-4 border-green-700 hover:brightness-105 active:translate-y-1 transition-all flex items-center justify-center gap-2">
-                            <Check size={18} /> VALIDAR CADASTRO
+                            <Check size={18} /> VALIDAR
                           </button>
                           <button onClick={() => deleteUser(t.id)} className="p-4 bg-red-50 text-red-500 rounded-2xl hover:bg-red-100 transition-colors">
                             <Trash2 size={24} />
@@ -121,20 +121,8 @@ const AdminDashboard: React.FC = () => {
                                   {u.status === 'active' ? 'ATIVO' : 'SUSPENSO'}
                               </span>
                           </div>
-                          
-                          <div className="grid grid-cols-2 gap-2">
-                             <div className="bg-gray-50 p-3 rounded-2xl">
-                                <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Instituição</p>
-                                <p className="text-[10px] font-bold text-gray-700 truncate">{u.school || 'Não vinculada'}</p>
-                             </div>
-                             <div className="bg-gray-50 p-3 rounded-2xl">
-                                <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Localização</p>
-                                <p className="text-[10px] font-bold text-gray-700 truncate">{u.city}/{u.state}</p>
-                             </div>
-                          </div>
-
                           <div className="flex gap-2 pt-2">
-                             <button onClick={() => toggleUserStatus(u.id)} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2 transition-all ${u.status === 'active' ? 'bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-500' : 'bg-green-100 text-secondary hover:bg-green-200'}`}>
+                             <button onClick={() => toggleUserStatus(u.id)} className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2 transition-all ${u.status === 'active' ? 'bg-gray-100 text-gray-500 hover:bg-red-50' : 'bg-green-100 text-secondary'}`}>
                                 {u.status === 'active' ? <><Ban size={14} /> Suspender</> : <><Check size={14} /> Reativar</>}
                              </button>
                              <button onClick={() => deleteUser(u.id)} className="px-5 py-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors">
@@ -147,51 +135,67 @@ const AdminDashboard: React.FC = () => {
           )}
 
           {activeTab === 'schools' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredSchools.map(school => (
-                      <div key={school} className="p-6 bg-white border-b-4 border-gray-100 rounded-3xl hover:border-accent transition-all group">
-                          {editingSchool === school ? (
-                              <div className="space-y-4">
-                                  <input 
-                                      value={newSchoolName} 
-                                      onChange={e => setNewSchoolName(e.target.value)}
-                                      className="w-full p-4 rounded-xl border-2 border-primary outline-none font-bold"
-                                  />
-                                  <div className="flex gap-2">
-                                      <button onClick={() => { renameSchool(school, newSchoolName); setEditingSchool(null); }} className="flex-1 bg-primary text-white py-2 rounded-xl font-black text-xs uppercase">Salvar</button>
-                                      <button onClick={() => setEditingSchool(null)} className="flex-1 bg-gray-100 text-gray-500 py-2 rounded-xl font-black text-xs uppercase">X</button>
-                                  </div>
-                              </div>
-                          ) : (
-                              <div className="flex flex-col gap-4">
-                                  <div className="flex items-start justify-between">
-                                      <div className="bg-accent/10 p-3 rounded-2xl text-accent group-hover:bg-accent group-hover:text-white transition-all">
+              <div className="grid grid-cols-1 gap-4">
+                  {filteredSchools.map(school => {
+                      const isExpanded = expandedSchool === school;
+                      const schoolUsers = allUsers.filter(u => u.school === school || u.teacherSchools?.includes(school));
+                      const teachers = schoolUsers.filter(u => u.role === UserRole.TEACHER);
+                      const students = schoolUsers.filter(u => u.role === UserRole.STUDENT);
+
+                      return (
+                          <div key={school} className={`bg-white border-2 rounded-3xl transition-all overflow-hidden ${isExpanded ? 'border-accent shadow-xl' : 'border-gray-100 hover:border-accent/50'}`}>
+                              <div className="p-6 flex items-center justify-between cursor-pointer" onClick={() => setExpandedSchool(isExpanded ? null : school)}>
+                                  <div className="flex items-center gap-4">
+                                      <div className="bg-accent/10 p-3 rounded-2xl text-accent">
                                           <Building size={24} />
                                       </div>
-                                      <div className="flex gap-1">
-                                          <button onClick={() => { setEditingSchool(school); setNewSchoolName(school); }} className="p-2 text-gray-300 hover:text-primary transition-colors"><Edit3 size={18} /></button>
-                                          <button onClick={() => deleteSchool(school)} className="p-2 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                                      <div>
+                                          <h3 className="font-black text-gray-800 leading-tight">{school}</h3>
+                                          <p className="text-[10px] font-black text-gray-400 uppercase flex items-center gap-2 mt-1">
+                                              <Users size={12} /> {teachers.length} Professor(es) • {students.length} Aluno(s)
+                                          </p>
                                       </div>
                                   </div>
-                                  <h3 className="font-black text-gray-800 leading-tight h-10 overflow-hidden line-clamp-2">{school}</h3>
-                                  <div className="flex items-center gap-2 text-[8px] font-black text-gray-400 uppercase tracking-widest mt-2">
-                                      <Users size={12} /> Unidade Integrada
-                                  </div>
+                                  {isExpanded ? <ChevronUp size={24} className="text-gray-300" /> : <ChevronDown size={24} className="text-gray-300" />}
                               </div>
-                          )}
-                      </div>
-                  ))}
+
+                              {isExpanded && (
+                                  <div className="px-6 pb-6 pt-2 bg-gray-50/50 border-t border-gray-100 animate-fade-in">
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
+                                          <div>
+                                              <h4 className="text-[10px] font-black text-secondary uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                  <BookOpen size={14} /> Professores Vinculados
+                                              </h4>
+                                              <div className="space-y-2">
+                                                  {teachers.length > 0 ? teachers.map(t => (
+                                                      <div key={t.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center gap-3">
+                                                          <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center text-secondary"><Edit3 size={14} /></div>
+                                                          <span className="font-bold text-sm text-gray-700">{t.name}</span>
+                                                      </div>
+                                                  )) : <p className="text-xs italic text-gray-400">Nenhum professor registrado.</p>}
+                                              </div>
+                                          </div>
+                                          <div>
+                                              <h4 className="text-[10px] font-black text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                  <GraduationCap size={14} /> Alunos Ativos
+                                              </h4>
+                                              <div className="space-y-2">
+                                                  {students.length > 0 ? students.map(s => (
+                                                      <div key={s.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center gap-3">
+                                                          <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-primary font-black text-[10px]">{s.grade}º</div>
+                                                          <span className="font-bold text-sm text-gray-700">{s.name} ({s.classId})</span>
+                                                      </div>
+                                                  )) : <p className="text-xs italic text-gray-400">Nenhum aluno registrado.</p>}
+                                              </div>
+                                          </div>
+                                      </div>
+                                  </div>
+                              )}
+                          </div>
+                      );
+                  })}
               </div>
           )}
-
-          {(activeTab === 'pending' && pendingTeachers.length === 0) || 
-           (activeTab === 'users' && filteredUsers.length === 0) ||
-           (activeTab === 'schools' && filteredSchools.length === 0) ? (
-              <div className="text-center py-32 bg-white/50 rounded-3xl border-2 border-dashed border-gray-100">
-                  <X size={48} className="mx-auto text-gray-200 mb-4" />
-                  <p className="text-gray-400 font-bold italic">Nenhum registro encontrado para esta seção.</p>
-              </div>
-          ) : null}
       </div>
     </div>
   );
