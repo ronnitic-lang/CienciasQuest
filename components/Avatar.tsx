@@ -17,12 +17,12 @@ const Avatar: React.FC<AvatarProps> = ({ config, size = 100, className = '' }) =
       className={`rounded-full bg-blue-100 border-4 border-white shadow-lg ${className}`}
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* LAYER 0: Back Hair (Background part of the hair) */}
+      {/* LAYER 0: Back Hair (Atrás da cabeça/corpo) */}
       {config.hairStyle === 'long' && (
-         <path d="M45,90 L45,185 Q100,205 155,185 L155,90 Z" fill={config.hairColor} />
+         <path d="M45,90 L45,185 Q100,200 155,185 L155,90 Z" fill={config.hairColor} />
       )}
       {config.hairStyle === 'bob' && (
-         <path d="M45,90 L45,155 Q100,165 155,155 L155,90 Z" fill={config.hairColor} />
+         <path d="M48,90 L48,155 Q100,165 152,155 L152,90 Z" fill={config.hairColor} />
       )}
       {config.hairStyle === 'puffs' && (
          <g>
@@ -55,9 +55,12 @@ const Avatar: React.FC<AvatarProps> = ({ config, size = 100, className = '' }) =
         <path d="M80,110 Q90,105 100,110 Q110,105 120,110 L120,115 Q100,110 80,115 Z" fill={config.hairColor} />
       )}
 
-      {/* LAYER 4: Frontal Hair / Fringe */}
+      {/* LAYER 4: Frontal Hair / Fringe (Franja e Contorno do Rosto) */}
       {(config.hairStyle === 'short' || config.hairStyle === 'long' || config.hairStyle === 'puffs' || config.hairStyle === 'bob') && (
-        <path d="M50,90 Q50,30 100,30 T150,90 Q150,115 130,105 Q100,85 70,105 Q50,115 50,90 Z" fill={config.hairColor} />
+        <path 
+          d="M50,90 Q50,30 100,30 T150,90 Q150,115 140,115 Q100,100 60,115 Q50,115 50,90 Z" 
+          fill={config.hairColor} 
+        />
       )}
       
       {config.hairStyle === 'fade' && (

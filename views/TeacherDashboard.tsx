@@ -2,7 +2,11 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Users, BookOpen, AlertCircle, Building, Check, PlusCircle, GraduationCap, X, Trophy, RefreshCw, Search, ChevronRight, Trash2, ToggleLeft, ToggleRight, Clock } from 'lucide-react';
+import { 
+  Users, BookOpen, AlertCircle, Building, Check, PlusCircle, 
+  GraduationCap, X, Trophy, RefreshCw, Search, ChevronRight, 
+  Trash2, ToggleLeft, ToggleRight, Clock, Edit3, Save 
+} from 'lucide-react';
 import { MOCK_UNITS, CLASSES, SHIFTS } from '../constants';
 import { useAuth } from '../context/AuthContext';
 import { Classroom } from '../types';
@@ -11,7 +15,7 @@ import Avatar from '../components/Avatar';
 const TeacherDashboard: React.FC = () => {
   const { 
     user, allUsers, unlockedUnitIds, toggleUnitLock, activeClassrooms, 
-    addClassroom, removeClassroom, addSchool, switchActiveSchool, 
+    addClassroom, updateClassroom, removeClassroom, addSchool, switchActiveSchool, 
     removeSchoolFromTeacher 
   } = useAuth();
   
@@ -21,14 +25,14 @@ const TeacherDashboard: React.FC = () => {
 
   const [showAddSchool, setShowAddSchool] = useState(false);
   const [showAddClassroom, setShowAddClassroom] = useState(false);
-  const [newSchoolName, setNewSchoolName] = useState('');
+  const [editingClassId, setEditingClassId] = useState<string | null>(null);
   
-  // States para nova turma
+  // States para Formulários
+  const [newSchoolName, setNewSchoolName] = useState('');
   const [newGrade, setNewGrade] = useState<number>(6);
   const [newClassId, setNewClassId] = useState('');
   const [newShift, setNewShift] = useState('');
 
-  const [showSavedToast, setShowSavedToast] = useState(false);
   const [tempSelectedSchool, setTempSelectedSchool] = useState<string>(user?.school || '');
   const [isSwitching, setIsSwitching] = useState(false);
   const [curriculumSearch, setCurriculumSearch] = useState('');
@@ -50,10 +54,6 @@ const TeacherDashboard: React.FC = () => {
       .sort((a, b) => (b.xp || 0) - (a.xp || 0));
   }, [allUsers, user?.school]);
 
-  const criticalStudents = useMemo(() => {
-      return schoolRanking.filter(s => (s.xp || 0) < 300).slice(0, 5);
-  }, [schoolRanking]);
-
   const classRosterStudents = useMemo(() => {
     if (!selectedClassRoster) return [];
     return allUsers.filter(u => 
@@ -69,14 +69,6 @@ const TeacherDashboard: React.FC = () => {
     return activeClassrooms.filter(c => c.teacherId === user?.id && c.school === tempSelectedSchool);
   }, [activeClassrooms, user?.id, tempSelectedSchool]);
 
-  const getBarColor = (value: number) => {
-    if (value >= 90) return '#4A90E2'; 
-    if (value >= 70) return '#7ED321'; 
-    if (value >= 50) return '#F5A623'; 
-    if (value >= 40) return '#FFC107'; 
-    return '#D0021B'; 
-  };
-
   const chartData = useMemo(() => {
       return myUnits.filter(u => u.type === 'standard').slice(0, 6).map(u => ({
           skill: u.title,
@@ -86,18 +78,12 @@ const TeacherDashboard: React.FC = () => {
 
   const teacherSchools = user?.teacherSchools || (user?.school ? [user.school] : []);
 
-  const triggerToast = () => {
-    setShowSavedToast(true);
-    setTimeout(() => setShowSavedToast(false), 2000);
-  };
-
   const handleSwitchSchool = () => {
     if (tempSelectedSchool && tempSelectedSchool !== user?.school) {
       setIsSwitching(true);
       setTimeout(() => {
         switchActiveSchool(tempSelectedSchool);
         setIsSwitching(false);
-        triggerToast();
       }, 400);
     }
   };
@@ -115,20 +101,34 @@ const TeacherDashboard: React.FC = () => {
         setShowAddClassroom(false);
         setNewClassId('');
         setNewShift('');
-        triggerToast();
+    }
+  };
+
+  const handleEditClassroom = (classroom: Classroom) => {
+    setEditingClassId(classroom.id);
+    setNewGrade(classroom.grade);
+    setNewClassId(classroom.classId);
+    setNewShift(classroom.shift);
+    setShowAddClassroom(true);
+  };
+
+  const handleUpdateClassroom = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingClassId) {
+      updateClassroom(editingClassId, {
+        grade: newGrade,
+        classId: newClassId,
+        shift: newShift
+      });
+      setEditingClassId(null);
+      setShowAddClassroom(false);
+      setNewClassId('');
     }
   };
 
   return (
     <div className="pb-20">
-      {/* Toast Notification */}
-      {showSavedToast && (
-          <div className="fixed top-20 right-4 z-[120] bg-secondary text-white px-6 py-3 rounded-2xl shadow-xl border-b-4 border-green-700 animate-bounce-in flex items-center gap-2 font-black uppercase text-xs">
-              <Check size={18} /> Alteração Salva!
-          </div>
-      )}
-
-      {/* MODAL: Lista de Chamada da Turma */}
+      {/* MODAL: Lista de Chamada */}
       {selectedClassRoster && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
            <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
@@ -137,18 +137,16 @@ const TeacherDashboard: React.FC = () => {
                       <div className="bg-primary/10 p-2 rounded-xl text-primary"><GraduationCap size={24} /></div>
                       <div>
                           <h3 className="font-black text-gray-800">Lista de Chamada</h3>
-                          <p className="text-[10px] font-black text-primary uppercase tracking-widest leading-none mt-1">
+                          <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-1">
                             {selectedClassRoster.grade}º {selectedClassRoster.classId} • {selectedClassRoster.shift}
                           </p>
                       </div>
                   </div>
-                  <button onClick={() => setSelectedClassRoster(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                    <X size={20} />
-                  </button>
+                  <button onClick={() => setSelectedClassRoster(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={20} /></button>
               </div>
               <div className="p-6 overflow-y-auto space-y-3 bg-white custom-scrollbar flex-1">
                   {classRosterStudents.map((s, idx) => (
-                      <div key={s.id} className="flex items-center justify-between p-3 rounded-2xl border-2 border-gray-50 bg-gray-50/30 hover:bg-blue-50/50 hover:border-blue-100 transition-all">
+                      <div key={s.id} className="flex items-center justify-between p-3 rounded-2xl border-2 border-gray-50 bg-gray-50/30">
                           <div className="flex items-center gap-3">
                               <div className="text-[10px] font-black text-gray-300 w-4">{idx + 1}º</div>
                               {s.avatarConfig && <Avatar config={s.avatarConfig} size={42} />}
@@ -159,14 +157,13 @@ const TeacherDashboard: React.FC = () => {
                           </div>
                           <div className="text-right">
                               <p className="text-sm font-black text-primary leading-none">{s.xp || 0} XP</p>
-                              <p className="text-[8px] font-black text-secondary uppercase">ATIVO</p>
                           </div>
                       </div>
                   ))}
                   {classRosterStudents.length === 0 && (
                       <div className="text-center py-16">
                           <Users size={48} className="mx-auto text-gray-200 mb-2" />
-                          <p className="text-gray-400 font-bold italic">Nenhum aluno matriculado nesta turma ainda.</p>
+                          <p className="text-gray-400 font-bold italic text-sm">Nenhum aluno matriculado nesta turma ainda.</p>
                       </div>
                   )}
               </div>
@@ -181,13 +178,13 @@ const TeacherDashboard: React.FC = () => {
           </h1>
           <div className="flex items-center gap-2 mt-1">
              <Building size={16} className="text-primary" />
-             <p className="text-gray-500 font-bold">{user?.school} • Gestão {user?.grade}º Ano</p>
+             <p className="text-gray-500 font-bold text-sm">{user?.school} • Gestão Pedagógica</p>
           </div>
       </div>
 
       {currentTab === 'overview' && (
           <div className="animate-fade-in space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between">
                     <div className="flex items-center gap-4">
                         <div className="bg-blue-100 p-3 rounded-2xl text-primary"><Users size={28} /></div>
@@ -201,43 +198,26 @@ const TeacherDashboard: React.FC = () => {
                     <div className="flex items-center gap-4">
                         <div className="bg-green-100 p-3 rounded-2xl text-secondary"><BookOpen size={28} /></div>
                         <div>
-                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Módulos Ativos</p>
+                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Módulos BNCC</p>
                             <p className="text-3xl font-black text-gray-800">{myUnits.length}</p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="bg-red-100 p-3 rounded-2xl text-red-500"><AlertCircle size={28} /></div>
-                        <div>
-                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Engajamento Crítico</p>
-                            <p className="text-3xl font-black text-gray-800">{criticalStudents.length}</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-black text-gray-800 leading-tight">Média de Acertos (%)</h2>
-                        <div className="hidden sm:flex gap-3 text-[8px] font-black uppercase">
-                            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#4A90E2]"></div> Azul (90%+)</span>
-                            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#7ED321]"></div> Verde (70%+)</span>
-                        </div>
-                    </div>
-                    <div className="h-72 w-full mt-auto">
-                        <ResponsiveContainer width="100%" height="100%">
+                <div className="lg:col-span-2 bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col min-h-[400px]">
+                    <h2 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
+                        <AlertCircle className="text-primary" size={20} /> Médias por Habilidade (%)
+                    </h2>
+                    <div className="h-full w-full">
+                        <ResponsiveContainer width="100%" height={300}>
                             <BarChart data={chartData}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                                 <XAxis dataKey="skill" tick={{fill: '#888', fontSize: 10, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
                                 <YAxis tick={{fill: '#888', fontSize: 10}} axisLine={false} tickLine={false} domain={[0, 100]} />
                                 <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', fontWeight: 'bold' }} />
-                                <Bar dataKey="average" radius={[8, 8, 0, 0]} barSize={40}>
-                                    {chartData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={getBarColor(entry.average)} />
-                                    ))}
-                                </Bar>
+                                <Bar dataKey="average" radius={[8, 8, 0, 0]} barSize={40} fill="#4A90E2" />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -245,7 +225,7 @@ const TeacherDashboard: React.FC = () => {
 
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col h-[400px]">
                     <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                       <Trophy size={14} className="text-accent" /> Hall da Fama - Unidade
+                       <Trophy size={14} className="text-accent" /> TOP Alunos (Escola)
                     </h2>
                     <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                         {schoolRanking.map((s, idx) => (
@@ -264,7 +244,6 @@ const TeacherDashboard: React.FC = () => {
                                 </div>
                                 <div className="text-right">
                                     <p className="text-xs font-black text-primary">{s.xp || 0}</p>
-                                    <p className="text-[7px] font-black text-gray-300 uppercase tracking-tighter">PONTOS</p>
                                 </div>
                             </div>
                         ))}
@@ -282,7 +261,7 @@ const TeacherDashboard: React.FC = () => {
                           <h2 className="text-xl font-black text-gray-800 flex items-center gap-3">
                              <BookOpen className="text-primary" /> Controle de Habilidades
                           </h2>
-                          <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">Libere ou bloqueie módulos para seus alunos do {user?.grade}º ano</p>
+                          <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">Libere ou bloqueie módulos para seus alunos</p>
                       </div>
                       <div className="relative">
                           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -291,7 +270,7 @@ const TeacherDashboard: React.FC = () => {
                             placeholder="Buscar BNCC ou tema..." 
                             value={curriculumSearch}
                             onChange={(e) => setCurriculumSearch(e.target.value)}
-                            className="pl-12 pr-4 py-3 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold w-full md:w-64 transition-all"
+                            className="pl-12 pr-4 py-3 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold w-full md:w-64 transition-all shadow-sm"
                           />
                       </div>
                   </div>
@@ -319,13 +298,9 @@ const TeacherDashboard: React.FC = () => {
                                 </div>
 
                                 <div className="flex items-center gap-4">
-                                    <div className={`hidden sm:block text-right ${isUnlocked ? 'text-secondary' : 'text-gray-400'}`}>
-                                        <p className="text-[9px] font-black uppercase tracking-widest">{isUnlocked ? 'Liberado' : 'Bloqueado'}</p>
-                                        <p className="text-[8px] font-bold opacity-60 leading-none">Status na Trilha</p>
-                                    </div>
                                     <button 
-                                        onClick={() => { toggleUnitLock(unit.id); triggerToast(); }}
-                                        disabled={isReview} // Revisão é liberada por padrão
+                                        onClick={() => toggleUnitLock(unit.id)}
+                                        disabled={isReview} 
                                         className={`p-1 rounded-full transition-all ${
                                             isUnlocked ? 'text-secondary' : 'text-gray-300'
                                         } ${isReview ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110 active:scale-95'}`}
@@ -336,12 +311,6 @@ const TeacherDashboard: React.FC = () => {
                             </div>
                           );
                       })}
-                      {filteredCurriculum.length === 0 && (
-                          <div className="text-center py-16">
-                              <Search size={48} className="mx-auto text-gray-100 mb-2" />
-                              <p className="text-gray-400 font-bold italic">Nenhum módulo encontrado para "{curriculumSearch}"</p>
-                          </div>
-                      )}
                   </div>
               </div>
           </div>
@@ -354,17 +323,15 @@ const TeacherDashboard: React.FC = () => {
                       <h2 className="text-xl font-black text-gray-800 flex items-center gap-3">
                          <Building className="text-accent" /> Gestão Escolar
                       </h2>
-                      <div className="flex gap-2">
-                        <button onClick={() => { setShowAddSchool(!showAddSchool); setShowAddClassroom(false); }} className="bg-primary/10 text-primary font-black text-xs px-4 py-2 rounded-xl flex items-center gap-1 hover:bg-primary hover:text-white transition-all">
-                            <PlusCircle size={16} /> Nova Escola
-                        </button>
-                      </div>
+                      <button onClick={() => { setShowAddSchool(!showAddSchool); setShowAddClassroom(false); }} className="bg-primary/10 text-primary font-black text-xs px-4 py-2 rounded-xl flex items-center gap-1 hover:bg-primary hover:text-white transition-all">
+                          <PlusCircle size={16} /> Vincular Escola
+                      </button>
                   </div>
 
                   {showAddSchool && (
-                      <form onSubmit={(e) => { e.preventDefault(); if (newSchoolName.trim()) { addSchool(newSchoolName.trim()); setNewSchoolName(''); setShowAddSchool(false); triggerToast(); } }} className="mb-8 bg-blue-50/50 p-6 rounded-3xl border-2 border-dashed border-blue-200 flex flex-col sm:flex-row gap-4 animate-bounce-in">
+                      <form onSubmit={(e) => { e.preventDefault(); if (newSchoolName.trim()) { addSchool(newSchoolName.trim()); setNewSchoolName(''); setShowAddSchool(false); } }} className="mb-8 bg-blue-50/50 p-6 rounded-3xl border-2 border-dashed border-blue-200 flex flex-col sm:flex-row gap-4 animate-bounce-in">
                           <input required type="text" value={newSchoolName} onChange={e => setNewSchoolName(e.target.value)} placeholder="Nome da instituição..." className="flex-1 p-4 rounded-2xl border-2 border-white font-bold focus:border-primary outline-none shadow-sm" />
-                          <button type="submit" className="bg-primary text-white font-black px-8 py-4 rounded-2xl shadow-xl border-b-4 border-blue-700 uppercase text-xs tracking-widest">CADASTRAR ESCOLA</button>
+                          <button type="submit" className="bg-primary text-white font-black px-8 py-4 rounded-2xl shadow-xl border-b-4 border-blue-700 uppercase text-xs tracking-widest">CADASTRAR</button>
                       </form>
                   )}
 
@@ -383,7 +350,7 @@ const TeacherDashboard: React.FC = () => {
                                {user?.school === s && <div className="w-2 h-2 bg-secondary rounded-full"></div>}
                             </button>
                             <button 
-                              onClick={(e) => { e.stopPropagation(); removeSchoolFromTeacher(s); triggerToast(); }}
+                              onClick={(e) => { e.stopPropagation(); removeSchoolFromTeacher(s); }}
                               className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover/chip:opacity-100"
                             >
                               <X size={18} />
@@ -414,14 +381,14 @@ const TeacherDashboard: React.FC = () => {
                         <GraduationCap size={14} /> Turmas Ativas em: {tempSelectedSchool || 'Nenhuma'}
                     </h2>
                     {tempSelectedSchool && (
-                        <button onClick={() => setShowAddClassroom(!showAddClassroom)} className="text-secondary font-black text-[10px] uppercase tracking-widest flex items-center gap-1 hover:brightness-110">
+                        <button onClick={() => { setShowAddClassroom(!showAddClassroom); setEditingClassId(null); }} className="text-secondary font-black text-[10px] uppercase tracking-widest flex items-center gap-1 hover:brightness-110">
                             <PlusCircle size={14} /> Nova Turma
                         </button>
                     )}
                   </div>
 
                   {showAddClassroom && (
-                    <form onSubmit={handleAddClassroom} className="mb-8 p-6 bg-green-50/50 rounded-3xl border-2 border-dashed border-green-200 grid grid-cols-1 md:grid-cols-4 gap-4 animate-bounce-in">
+                    <form onSubmit={editingClassId ? handleUpdateClassroom : handleAddClassroom} className="mb-8 p-6 bg-green-50/50 rounded-3xl border-2 border-dashed border-green-200 grid grid-cols-1 md:grid-cols-4 gap-4 animate-bounce-in">
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-gray-400 uppercase ml-2">Ano</label>
                             <select value={newGrade} onChange={e => setNewGrade(Number(e.target.value))} className="w-full p-4 rounded-2xl border-2 border-white font-bold outline-none shadow-sm">
@@ -443,7 +410,9 @@ const TeacherDashboard: React.FC = () => {
                             </select>
                         </div>
                         <div className="flex items-end">
-                            <button type="submit" className="w-full bg-secondary text-white font-black py-4 rounded-2xl shadow-lg border-b-4 border-green-700 uppercase text-[10px] tracking-widest">ADICIONAR</button>
+                            <button type="submit" className="w-full bg-secondary text-white font-black py-4 rounded-2xl shadow-lg border-b-4 border-green-700 uppercase text-[10px] tracking-widest">
+                                {editingClassId ? 'ATUALIZAR' : 'ADICIONAR'}
+                            </button>
                         </div>
                     </form>
                   )}
@@ -466,22 +435,19 @@ const TeacherDashboard: React.FC = () => {
                                             <Clock size={10} /> {room.shift}
                                         </span>
                                       </div>
-                                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">CLIQUE PARA VER ALUNOS</p>
+                                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Clique para lista de chamada</p>
                                   </div>
                               </div>
-                              <div className="flex items-center gap-4">
-                                  <ChevronRight size={24} className="text-gray-300 group-hover:text-primary transition-all translate-x-0 group-hover:translate-x-2" />
-                                  <button onClick={(e) => { e.stopPropagation(); removeClassroom(room.id); triggerToast(); }} className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
-                                     <Trash2 size={22} />
+                              <div className="flex items-center gap-2">
+                                  <button onClick={(e) => { e.stopPropagation(); handleEditClassroom(room); }} className="p-3 text-gray-300 hover:text-primary hover:bg-blue-50 rounded-xl transition-all">
+                                     <Edit3 size={20} />
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); removeClassroom(room.id); }} className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                                     <Trash2 size={20} />
                                   </button>
                               </div>
                           </div>
                       ))}
-                      {viewClassrooms.length === 0 && (
-                        <div className="col-span-full py-12 text-center bg-gray-50/50 rounded-3xl border-2 border-dashed border-gray-100">
-                            <p className="text-gray-400 font-bold italic">Nenhuma turma cadastrada para esta escola.</p>
-                        </div>
-                      )}
                   </div>
               </div>
           </div>

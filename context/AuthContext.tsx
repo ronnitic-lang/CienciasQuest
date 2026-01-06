@@ -24,11 +24,14 @@ interface AuthContextType {
   // Admin Actions
   approveTeacher: (userId: string) => void;
   deleteUser: (userId: string) => void;
+  toggleUserStatus: (userId: string) => void;
   addSchool: (schoolName: string) => void;
   renameSchool: (oldName: string, newName: string) => void;
+  deleteSchool: (schoolName: string) => void;
 
   // Teacher Actions
   addClassroom: (classroom: Omit<Classroom, 'id'>) => void;
+  updateClassroom: (classroomId: string, data: Partial<Classroom>) => void;
   removeClassroom: (classroomId: string) => void;
   switchActiveSchool: (schoolName: string) => void;
   removeSchoolFromTeacher: (schoolName: string) => void;
@@ -118,7 +121,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = (email: string, role: UserRole, password?: string) => {
-    // Verificação de Administrador com as novas credenciais fornecidas
     if (role === UserRole.ADMIN) {
       if (email === 'ronnitic@gmail.com' && password === "%tGb<>:5ioip!'2à+=") {
         const adminUser: User = { 
@@ -136,10 +138,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'Usuário ou senha administrativa inválidos.' };
     }
 
-    // Login de Alunos e Professores
     const foundUser = allUsers.find(u => u.email === email && u.role === role);
     if (!foundUser) return { success: false, message: 'Usuário não encontrado.' };
-    if (foundUser.role === UserRole.TEACHER && foundUser.status === 'pending') return { success: false, message: 'Cadastro em análise.' };
+    if (foundUser.status === 'blocked') return { success: false, message: 'Sua conta está suspensa. Entre em contato com o suporte.' };
+    if (foundUser.role === UserRole.TEACHER && foundUser.status === 'pending') return { success: false, message: 'Cadastro em análise pela administração.' };
     
     setUser(foundUser);
     localStorage.setItem('cq_current_user', JSON.stringify(foundUser));
@@ -158,7 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addXp = (amount: number) => {
-    if (user) {
+    if (user && user.role === UserRole.STUDENT) {
       const updated = { ...user, xp: (user.xp || 0) + amount };
       setUser(updated);
       localStorage.setItem('cq_current_user', JSON.stringify(updated));
@@ -171,18 +173,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const approveTeacher = (userId: string) => {
-    setAllUsers(prev => {
-      const updatedList = prev.map(u => u.id === userId ? { ...u, status: 'active' as const, isVerified: true } : u);
-      const teacher = updatedList.find(u => u.id === userId);
-      if (teacher && teacher.school && teacher.grade && teacher.classId && teacher.shift) {
-        const newRoom: Classroom = { id: `room-${Date.now()}`, school: teacher.school, grade: teacher.grade, classId: teacher.classId, shift: teacher.shift, teacherId: teacher.id };
-        setActiveClassrooms(prevRooms => {
-          const exists = prevRooms.find(r => normalizeSchoolName(r.school) === normalizeSchoolName(newRoom.school) && r.grade === newRoom.grade && r.classId === newRoom.classId && r.shift === newRoom.shift);
-          return exists ? prevRooms : [...prevRooms, newRoom];
-        });
+    setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'active', isVerified: true } : u));
+  };
+
+  const toggleUserStatus = (userId: string) => {
+    setAllUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        return { ...u, status: u.status === 'active' ? 'blocked' : 'active' };
       }
-      return updatedList;
-    });
+      return u;
+    }));
   };
 
   const renameSchool = (oldName: string, newName: string) => {
@@ -196,11 +196,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updatedUser;
     }));
     setActiveClassrooms(prev => prev.map(c => c.school === oldName ? { ...c, school: newName } : c));
-    if (user?.school === oldName) {
-      const updatedUser = { ...user, school: newName };
-      setUser(updatedUser);
-      localStorage.setItem('cq_current_user', JSON.stringify(updatedUser));
-    }
+  };
+
+  const deleteSchool = (schoolName: string) => {
+    setSchoolsList(prev => prev.filter(s => s !== schoolName));
   };
 
   const deleteUser = (userId: string) => { setAllUsers(prev => prev.filter(u => u.id !== userId)); };
@@ -209,13 +208,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const normalizedNew = normalizeSchoolName(schoolName);
     const exists = schoolsList.some(s => normalizeSchoolName(s) === normalizedNew);
     if (!exists) setSchoolsList(prev => [...prev, schoolName]);
-    if (user && user.role === UserRole.TEACHER) {
-        const updatedSchools = Array.from(new Set([...(user.teacherSchools || []), schoolName]));
-        const updatedUser = { ...user, teacherSchools: updatedSchools, school: schoolName };
-        setUser(updatedUser);
-        localStorage.setItem('cq_current_user', JSON.stringify(updatedUser));
-        setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
-    }
   };
 
   const addClassroom = (classroomData: Omit<Classroom, 'id'>) => {
@@ -223,23 +215,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveClassrooms(prev => [...prev, newClassroom]);
   };
 
+  const updateClassroom = (id: string, data: Partial<Classroom>) => {
+    setActiveClassrooms(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
+  };
+
   const removeClassroom = (classroomId: string) => { setActiveClassrooms(prev => prev.filter(c => c.id !== classroomId)); };
+  
   const switchActiveSchool = (schoolName: string) => {
     if (user && user.role === UserRole.TEACHER) {
-      const updatedUser = { ...user, school: schoolName };
-      setUser(updatedUser);
-      localStorage.setItem('cq_current_user', JSON.stringify(updatedUser));
-      setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+      updateUser(user.id, { school: schoolName });
     }
   };
+
   const removeSchoolFromTeacher = (schoolName: string) => {
     if (user && user.role === UserRole.TEACHER) {
       const updatedSchools = (user.teacherSchools || []).filter(s => s !== schoolName);
       let nextActiveSchool = user.school === schoolName ? (updatedSchools[0] || '') : user.school;
-      const updatedUser = { ...user, teacherSchools: updatedSchools, school: nextActiveSchool };
-      setUser(updatedUser);
-      localStorage.setItem('cq_current_user', JSON.stringify(updatedUser));
-      setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+      updateUser(user.id, { teacherSchools: updatedSchools, school: nextActiveSchool });
     }
   };
 
@@ -248,8 +240,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user, allUsers, schoolsList, activeClassrooms,
         login, register, updateUser, logout, updateAvatar, addXp,
         unlockedUnitIds, toggleUnitLock,
-        approveTeacher, deleteUser, addSchool, renameSchool,
-        addClassroom, removeClassroom, switchActiveSchool, removeSchoolFromTeacher
+        approveTeacher, deleteUser, toggleUserStatus, addSchool, renameSchool, deleteSchool,
+        addClassroom, updateClassroom, removeClassroom, switchActiveSchool, removeSchoolFromTeacher
     }}>
       {children}
     </AuthContext.Provider>
