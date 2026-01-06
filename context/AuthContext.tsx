@@ -44,7 +44,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [schoolsList, setSchoolsList] = useState<string[]>(MOCK_SCHOOLS);
+  const [schoolsList, setSchoolsList] = useState<string[]>([]);
   const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>([]);
   const [unlockedUnitIds, setUnlockedUnitIds] = useState<string[]>([]);
   const [citiesList, setCitiesList] = useState<Record<string, string[]>>(BRAZIL_CITIES);
@@ -59,7 +59,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (storedAllUsers) setAllUsers(JSON.parse(storedAllUsers));
     if (storedUser) setUser(JSON.parse(storedUser));
-    if (storedSchools) setSchoolsList(JSON.parse(storedSchools));
+    
+    if (storedSchools) {
+      setSchoolsList(JSON.parse(storedSchools));
+    } else {
+      setSchoolsList(MOCK_SCHOOLS);
+    }
+
     if (storedClassrooms) setActiveClassrooms(JSON.parse(storedClassrooms));
     if (storedCities) setCitiesList(JSON.parse(storedCities));
     
@@ -79,7 +85,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = (userData: Partial<User>) => {
     const normName = normalizeText(userData.name || "");
     
-    // 1. Verificar Duplicidade de Aluno na Mesma Turma/Turno
     if (userData.role === UserRole.STUDENT) {
       const exists = allUsers.some(u => 
         u.role === UserRole.STUDENT &&
@@ -92,10 +97,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (exists) return { success: false, message: "Já existe um aluno com este nome cadastrado nesta turma." };
     }
 
-    // 2. Verificar Duplicidade de Professor
     if (userData.role === UserRole.TEACHER) {
       const exists = allUsers.some(u => u.role === UserRole.TEACHER && normalizeText(u.name) === normName);
       if (exists) return { success: false, message: "Este professor já possui cadastro no sistema." };
+      
+      // Se professor inseriu nova escola no cadastro, adiciona à lista global
+      if (userData.school) {
+          addSchool(userData.school);
+      }
     }
 
     const newUser: User = {
@@ -186,15 +195,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addSchool = (schoolName: string) => {
     const normalizedNew = normalizeSchoolName(schoolName);
-    const exists = schoolsList.some(s => normalizeSchoolName(s) === normalizedNew);
-    if (!exists) setSchoolsList(prev => [...prev, schoolName]);
+    setSchoolsList(prev => {
+        const exists = prev.some(s => normalizeSchoolName(s) === normalizedNew);
+        if (!exists) return [...prev, schoolName];
+        return prev;
+    });
   };
 
   const renameSchool = (oldName: string, newName: string) => {
     setSchoolsList(prev => prev.map(s => s === oldName ? newName : s));
+    // Atualiza escola em todos os usuários afetados
+    setAllUsers(prev => prev.map(u => {
+        let updated = { ...u };
+        if (u.school === oldName) updated.school = newName;
+        if (u.teacherSchools?.includes(oldName)) {
+            updated.teacherSchools = u.teacherSchools.map(ts => ts === oldName ? newName : ts);
+        }
+        return updated;
+    }));
   };
 
-  const deleteSchool = (schoolName: string) => { setSchoolsList(prev => prev.filter(s => s !== schoolName)); };
+  const deleteSchool = (schoolName: string) => { 
+      setSchoolsList(prev => prev.filter(s => s !== schoolName));
+  };
 
   const addCity = (state: string, city: string) => {
     setCitiesList(prev => ({ ...prev, [state]: Array.from(new Set([...(prev[state] || []), city])) }));
@@ -209,14 +232,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveClassrooms(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
   };
 
-  const removeClassroom = (classroomId: string) => { setActiveClassrooms(prev => prev.filter(c => c.id !== classroomId)); };
+  const removeClassroom = (classroomId: string) => { 
+    setActiveClassrooms(prev => prev.filter(c => c.id !== classroomId)); 
+  };
   
   const switchActiveSchool = (schoolName: string) => { if (user) updateUser(user.id, { school: schoolName }); };
 
   const removeSchoolFromTeacher = (schoolName: string) => {
     if (user && user.role === UserRole.TEACHER) {
       const updatedSchools = (user.teacherSchools || []).filter(s => s !== schoolName);
-      updateUser(user.id, { teacherSchools: updatedSchools, school: updatedSchools[0] || '' });
+      updateUser(user.id, { 
+          teacherSchools: updatedSchools, 
+          school: user.school === schoolName ? (updatedSchools[0] || '') : user.school 
+      });
     }
   };
 

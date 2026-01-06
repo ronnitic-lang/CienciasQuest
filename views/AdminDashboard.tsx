@@ -6,13 +6,13 @@ import {
   User as UserIcon, CheckCircle, XCircle, Trash2, Building, 
   Users, Search, ShieldAlert, FileText, Check, X, Edit3, 
   Ban, ShieldCheck, Mail, MapPin, ChevronDown, ChevronUp, GraduationCap,
-  BookOpen, ExternalLink, Plus
+  BookOpen, ExternalLink, Plus, Clock
 } from 'lucide-react';
 import { BRAZIL_STATES } from '../constants';
 
 const AdminDashboard: React.FC = () => {
   const { 
-    allUsers, schoolsList, approveTeacher, deleteUser, 
+    allUsers, schoolsList, activeClassrooms, approveTeacher, deleteUser, 
     toggleUserStatus, addSchool, renameSchool, deleteSchool, addCity, citiesList 
   } = useAuth();
   
@@ -40,12 +40,12 @@ const AdminDashboard: React.FC = () => {
       .sort((a,b) => a.localeCompare(b));
   }, [schoolsList, searchTerm]);
 
-  const getSchoolStats = (schoolName: string) => {
-    const members = allUsers.filter(u => u.school === schoolName || u.teacherSchools?.includes(schoolName));
-    return {
-        teachers: members.filter(m => m.role === UserRole.TEACHER),
-        students: members.filter(m => m.role === UserRole.STUDENT)
-    };
+  const getSchoolDetails = (schoolName: string) => {
+    const teachers = allUsers.filter(u => u.role === UserRole.TEACHER && (u.school === schoolName || u.teacherSchools?.includes(schoolName)));
+    const classrooms = activeClassrooms.filter(c => c.school === schoolName);
+    const students = allUsers.filter(u => u.role === UserRole.STUDENT && u.school === schoolName);
+    
+    return { teachers, classrooms, students };
   };
 
   return (
@@ -54,7 +54,7 @@ const AdminDashboard: React.FC = () => {
           <div className="relative z-10">
             <h1 className="text-4xl font-black mb-2 tracking-tight">Painel de Controle</h1>
             <p className="opacity-70 font-bold uppercase text-[10px] tracking-widest flex items-center gap-2">
-                <ShieldCheck size={14} /> Administração Geral CienciasQuest
+                <ShieldCheck size={14} /> Monitoramento em Tempo Real CienciasQuest
             </p>
           </div>
           <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12">
@@ -64,10 +64,10 @@ const AdminDashboard: React.FC = () => {
 
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
           {[
-              { id: 'pending', label: 'VALIDAÇÕES', count: pendingTeachers.length, color: 'secondary' },
-              { id: 'users', label: 'USUÁRIOS', count: filteredUsers.length, color: 'primary' },
-              { id: 'schools', label: 'ESCOLAS', count: schoolsList.length, color: 'accent' },
-              { id: 'locations', label: 'CIDADES', color: 'dark' }
+              { id: 'pending', label: 'VALIDAÇÕES', count: pendingTeachers.length },
+              { id: 'users', label: 'USUÁRIOS', count: filteredUsers.length },
+              { id: 'schools', label: 'ESCOLAS', count: schoolsList.length },
+              { id: 'locations', label: 'CIDADES' }
           ].map(tab => (
               <button 
                 key={tab.id}
@@ -88,7 +88,7 @@ const AdminDashboard: React.FC = () => {
             <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400" size={24} />
             <input 
                 type="text" 
-                placeholder={`Buscar por ${activeTab === 'schools' ? 'instituição' : 'nome ou email'}...`}
+                placeholder={`Buscar em ${activeTab === 'schools' ? 'escolas' : 'usuários'}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-16 pr-8 py-5 rounded-3xl border-2 border-gray-100 font-bold focus:border-primary outline-none shadow-sm"
@@ -110,9 +110,9 @@ const AdminDashboard: React.FC = () => {
                               <div className="mt-2 flex items-center gap-2">
                                   <span className="bg-blue-100 text-blue-600 text-[8px] font-black px-2 py-1 rounded-lg">DOCÊNCIA</span>
                                   {t.proofFileUrl && (
-                                      <a href={t.proofFileUrl.startsWith('http') ? t.proofFileUrl : '#'} target="_blank" className="flex items-center gap-1 bg-yellow-100 text-yellow-700 text-[8px] font-black px-2 py-1 rounded-lg">
-                                          <ExternalLink size={10} /> VER COMPROVANTE
-                                      </a>
+                                      <span className="flex items-center gap-1 bg-yellow-100 text-yellow-700 text-[8px] font-black px-2 py-1 rounded-lg">
+                                          <ExternalLink size={10} /> DOC: {t.proofFileUrl}
+                                      </span>
                                   )}
                               </div>
                           </div>
@@ -128,7 +128,7 @@ const AdminDashboard: React.FC = () => {
                   </div>
               )) : (
                   <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-100">
-                      <p className="text-gray-400 font-bold italic">Nenhuma validação pendente no momento.</p>
+                      <p className="text-gray-400 font-bold italic">Nenhuma validação pendente.</p>
                   </div>
               )
           )}
@@ -151,6 +151,16 @@ const AdminDashboard: React.FC = () => {
                                   {u.status === 'active' ? 'ATIVO' : 'SUSPENSO'}
                               </span>
                           </div>
+                          <div className="space-y-1">
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                                  <Building size={10} /> {u.school || 'Sem vínculo'}
+                              </p>
+                              {u.role === UserRole.STUDENT && (
+                                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                                      <GraduationCap size={10} /> {u.grade}º {u.classId} ({u.shift})
+                                  </p>
+                              )}
+                          </div>
                           <div className="flex gap-2 pt-2 border-t">
                              <button onClick={() => toggleUserStatus(u.id)} className="flex-1 py-2 rounded-xl font-black text-[10px] uppercase bg-gray-100 text-gray-600 hover:bg-gray-200">
                                 {u.status === 'active' ? 'Suspender' : 'Reativar'}
@@ -165,67 +175,109 @@ const AdminDashboard: React.FC = () => {
           )}
 
           {activeTab === 'schools' && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                   {filteredSchools.map(school => {
-                    const stats = getSchoolStats(school);
+                    const { teachers, classrooms, students } = getSchoolDetails(school);
                     const isExpanded = expandedSchool === school;
 
                     return (
-                        <div key={school} className={`bg-white rounded-2xl border-2 transition-all overflow-hidden ${isExpanded ? 'border-accent shadow-lg' : 'border-gray-100'}`}>
+                        <div key={school} className={`bg-white rounded-3xl border-2 transition-all overflow-hidden ${isExpanded ? 'border-accent shadow-lg' : 'border-gray-100'}`}>
                             <div 
-                                className="p-5 flex items-center justify-between cursor-pointer group"
+                                className="p-6 flex items-center justify-between cursor-pointer group"
                                 onClick={() => setExpandedSchool(isExpanded ? null : school)}
                             >
-                                <div className="flex items-center gap-4">
-                                    <div className="bg-accent/10 p-3 rounded-xl text-accent group-hover:bg-accent group-hover:text-white transition-colors">
-                                        <Building size={24} />
+                                <div className="flex items-center gap-5">
+                                    <div className="bg-accent/10 p-4 rounded-2xl text-accent group-hover:bg-accent group-hover:text-white transition-colors">
+                                        <Building size={32} />
                                     </div>
                                     <div>
-                                        <h3 className="font-black text-gray-800">{school}</h3>
-                                        <div className="flex items-center gap-3 mt-1">
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1">
-                                                <Users size={12}/> {stats.students.length} Alunos
+                                        <h3 className="font-black text-gray-800 text-xl">{school}</h3>
+                                        <div className="flex items-center gap-4 mt-1">
+                                            <span className="text-[10px] font-black text-gray-400 uppercase flex items-center gap-1">
+                                                <Users size={12}/> {students.length} Alunos
                                             </span>
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1">
-                                                <BookOpen size={12}/> {stats.teachers.length} Professores
+                                            <span className="text-[10px] font-black text-gray-400 uppercase flex items-center gap-1">
+                                                <BookOpen size={12}/> {teachers.length} Professores
+                                            </span>
+                                            <span className="text-[10px] font-black text-gray-400 uppercase flex items-center gap-1">
+                                                <GraduationCap size={12}/> {classrooms.length} Turmas
                                             </span>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="text-gray-300">
-                                    {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+                                    {isExpanded ? <ChevronUp size={28} /> : <ChevronDown size={28} />}
                                 </div>
                             </div>
                             
                             {isExpanded && (
-                                <div className="px-5 pb-5 bg-gray-50 border-t animate-fade-in pt-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Professores Vinculados</p>
-                                            <div className="space-y-2">
-                                                {stats.teachers.length > 0 ? stats.teachers.map(t => (
-                                                    <div key={t.id} className="flex items-center gap-2 bg-white p-2 rounded-xl border border-gray-100 text-xs font-bold">
-                                                        <div className="w-2 h-2 rounded-full bg-secondary"></div>
-                                                        {t.name}
-                                                    </div>
-                                                )) : <p className="text-[10px] italic text-gray-400">Nenhum professor registrado.</p>}
+                                <div className="p-6 bg-gray-50 border-t animate-fade-in space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        {/* Coluna de Professores e Turmas */}
+                                        <div className="space-y-6">
+                                            <div>
+                                                <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                    <BookOpen size={14} className="text-secondary"/> Professores e suas Turmas
+                                                </p>
+                                                <div className="space-y-3">
+                                                    {teachers.map(t => {
+                                                        const teacherClassrooms = classrooms.filter(c => c.teacherId === t.id);
+                                                        return (
+                                                            <div key={t.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                                                <div className="flex items-center gap-3 mb-3 pb-2 border-b border-gray-50">
+                                                                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-secondary font-black text-xs">P</div>
+                                                                    <p className="font-black text-gray-700 text-sm">{t.name}</p>
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {teacherClassrooms.length > 0 ? teacherClassrooms.map(c => (
+                                                                        <span key={c.id} className="bg-blue-50 text-primary text-[9px] font-black px-2 py-1 rounded-lg border border-blue-100 flex items-center gap-1">
+                                                                            <Clock size={8}/> {c.grade}º{c.classId} - {c.shift}
+                                                                        </span>
+                                                                    )) : <p className="text-[9px] italic text-gray-400">Nenhuma turma configurada.</p>}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                         </div>
+
+                                        {/* Coluna de Alunos */}
                                         <div>
-                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Alunos Ativos</p>
-                                            <div className="space-y-2">
-                                                {stats.students.length > 0 ? stats.students.map(s => (
-                                                    <div key={s.id} className="flex items-center gap-2 bg-white p-2 rounded-xl border border-gray-100 text-xs font-bold">
-                                                        <div className="w-2 h-2 rounded-full bg-primary"></div>
-                                                        {s.name} ({s.grade}º {s.classId})
+                                            <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                <Users size={14} className="text-primary"/> Alunos Matriculados
+                                            </p>
+                                            <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50 max-h-[300px] overflow-y-auto custom-scrollbar">
+                                                {students.length > 0 ? students.map(s => (
+                                                    <div key={s.id} className="p-3 flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-primary font-black text-[8px]">A</div>
+                                                            <p className="text-xs font-bold text-gray-600">{s.name}</p>
+                                                        </div>
+                                                        <span className="text-[8px] font-black text-gray-400 uppercase">
+                                                            {s.grade}º{s.classId} ({s.shift.charAt(0)})
+                                                        </span>
                                                     </div>
-                                                )) : <p className="text-[10px] italic text-gray-400">Nenhum aluno registrado.</p>}
+                                                )) : (
+                                                    <div className="p-8 text-center text-[10px] text-gray-400 italic">Nenhum aluno cadastrado nesta unidade.</div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="mt-6 pt-4 border-t flex justify-end">
-                                        <button onClick={() => deleteSchool(school)} className="text-red-400 hover:text-red-600 text-[10px] font-black uppercase flex items-center gap-1">
-                                            <Trash2 size={12}/> Remover Instituição
+
+                                    <div className="pt-6 border-t border-gray-200 flex justify-end gap-3">
+                                        <button onClick={() => {
+                                            const newName = prompt("Novo nome para a escola:", school);
+                                            if (newName && newName !== school) renameSchool(school, newName);
+                                        }} className="text-[10px] font-black uppercase text-primary bg-blue-50 px-4 py-2 rounded-xl hover:bg-blue-100 transition-colors">
+                                            Renomear Escola
+                                        </button>
+                                        <button onClick={() => {
+                                            if (confirm(`Deseja realmente remover a escola "${school}"? Isso não apagará os usuários, apenas o vínculo.`)) {
+                                                deleteSchool(school);
+                                            }
+                                        }} className="text-[10px] font-black uppercase text-red-500 bg-red-50 px-4 py-2 rounded-xl hover:bg-red-100 transition-colors">
+                                            Remover do Sistema
                                         </button>
                                     </div>
                                 </div>
@@ -239,34 +291,41 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'locations' && (
               <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 animate-fade-in">
                   <h2 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
-                      <MapPin className="text-primary" /> Gestão de Cidades
+                      <MapPin className="text-primary" /> Gestão de Territórios
                   </h2>
                   <form 
                     onSubmit={(e) => { e.preventDefault(); if (newCityName) { addCity(newCityState, newCityName); setNewCityName(''); } }}
-                    className="flex flex-col sm:flex-row gap-4 mb-10 p-4 bg-gray-50 rounded-2xl"
+                    className="flex flex-col sm:flex-row gap-4 mb-10 p-6 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200"
                   >
-                      <select value={newCityState} onChange={e => setNewCityState(e.target.value)} className="p-4 rounded-xl border-2 border-white font-bold outline-none">
-                          {BRAZIL_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                      <input 
-                        type="text" 
-                        value={newCityName} 
-                        onChange={e => setNewCityName(e.target.value)} 
-                        placeholder="Nome da nova cidade..." 
-                        className="flex-1 p-4 rounded-xl border-2 border-white font-bold outline-none"
-                      />
-                      <button type="submit" className="bg-primary text-white font-black px-8 py-4 rounded-xl flex items-center gap-2 justify-center">
-                          <Plus size={20} /> ADICIONAR
+                      <div className="flex-1 space-y-4">
+                          <div className="flex gap-4">
+                              <select value={newCityState} onChange={e => setNewCityState(e.target.value)} className="p-4 rounded-xl border-2 border-white font-bold outline-none shadow-sm">
+                                  {BRAZIL_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                              <input 
+                                type="text" 
+                                value={newCityName} 
+                                onChange={e => setNewCityName(e.target.value)} 
+                                placeholder="Nome da cidade..." 
+                                className="flex-1 p-4 rounded-xl border-2 border-white font-bold outline-none shadow-sm"
+                              />
+                          </div>
+                      </div>
+                      <button type="submit" className="bg-primary text-white font-black px-10 py-4 rounded-xl flex items-center gap-2 justify-center shadow-lg border-b-4 border-blue-700 active:translate-y-1 transition-all">
+                          <Plus size={20} /> ADICIONAR CIDADE
                       </button>
                   </form>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {Object.entries(citiesList).map(([state, cities]) => (cities as string[]).length > 0 && (
-                          <div key={state} className="space-y-3">
-                              <p className="font-black text-primary border-b-2 border-primary/20 pb-1">{state}</p>
+                          <div key={state} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                              <div className="flex items-center justify-between border-b pb-2">
+                                  <p className="font-black text-primary">{state}</p>
+                                  <span className="bg-gray-100 text-[10px] font-black px-2 py-0.5 rounded-lg text-gray-400">{(cities as string[]).length} CIDADES</span>
+                              </div>
                               <div className="flex flex-wrap gap-2">
                                   {(cities as string[]).map(c => (
-                                      <span key={c} className="bg-white border-2 border-gray-100 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-500">
+                                      <span key={c} className="bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-500 flex items-center gap-2">
                                           {c}
                                       </span>
                                   ))}
