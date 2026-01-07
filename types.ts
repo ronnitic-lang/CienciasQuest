@@ -34,6 +34,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  password?: string; // Nova propriedade para senha
   role: UserRole;
   status: 'active' | 'pending' | 'blocked';
   

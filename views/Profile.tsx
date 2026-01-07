@@ -45,6 +45,7 @@ const Profile: React.FC = () => {
                      {user?.role === UserRole.STUDENT ? '👨‍🎓 ALUNO(A)' : '👩‍🏫 PROFESSOR(A)'}
                  </p>
                  
+                 {/* Apenas alunos possuem pontuação XP visível */}
                  {user?.role === UserRole.STUDENT && (
                     <div className="bg-blue-50 p-5 rounded-3xl flex items-center justify-center gap-3 border-2 border-blue-100">
                         <Star className="text-accent" fill="currentColor" size={24} />

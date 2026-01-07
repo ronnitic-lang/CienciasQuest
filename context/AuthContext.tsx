@@ -15,6 +15,7 @@ interface AuthContextType {
   register: (userData: Partial<User>) => { success: boolean, message?: string };
   updateUser: (userId: string, data: Partial<User>) => void;
   logout: () => void;
+  recoverPassword: (email: string) => { success: boolean, message: string };
   
   updateAvatar: (config: AvatarConfig) => void;
   addXp: (amount: number) => void;
@@ -76,6 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  // Persistência automática em cada mudança de estado
   useEffect(() => { localStorage.setItem('cq_all_users', JSON.stringify(allUsers)); }, [allUsers]);
   useEffect(() => { localStorage.setItem('cq_schools_list', JSON.stringify(schoolsList)); }, [schoolsList]);
   useEffect(() => { localStorage.setItem('cq_active_classrooms', JSON.stringify(activeClassrooms)); }, [activeClassrooms]);
@@ -101,7 +103,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const exists = allUsers.some(u => u.role === UserRole.TEACHER && normalizeText(u.name) === normName);
       if (exists) return { success: false, message: "Este professor já possui cadastro no sistema." };
       
-      // Se professor inseriu nova escola no cadastro, adiciona à lista global
       if (userData.school) {
           addSchool(userData.school);
       }
@@ -110,7 +111,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newUser: User = {
       id: Date.now().toString(),
       name: userData.name || 'Usuário',
-      email: userData.email || `${normName}@cienciasquest.com`,
+      email: userData.email || '',
+      password: userData.password || '',
       role: userData.role || UserRole.STUDENT,
       status: userData.role === UserRole.TEACHER ? 'pending' : 'active',
       state: userData.state,
@@ -151,12 +153,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const foundUser = allUsers.find(u => u.email === email && u.role === role);
     if (!foundUser) return { success: false, message: 'Usuário não encontrado.' };
+    if (foundUser.password !== password) return { success: false, message: 'Senha incorreta.' };
     if (foundUser.status === 'blocked') return { success: false, message: 'Sua conta está suspensa.' };
     if (foundUser.role === UserRole.TEACHER && foundUser.status === 'pending') return { success: false, message: 'Cadastro em análise pelo administrador.' };
     
     setUser(foundUser);
     localStorage.setItem('cq_current_user', JSON.stringify(foundUser));
     return { success: true };
+  };
+
+  const recoverPassword = (email: string) => {
+    const found = allUsers.find(u => u.email === email);
+    if (found) {
+      return { success: true, message: `Uma instrução de recuperação foi enviada para ${email}. (Simulação: Sua senha atual é: ${found.password})` };
+    }
+    return { success: false, message: "E-mail não encontrado no sistema." };
   };
 
   const logout = () => { setUser(null); localStorage.removeItem('cq_current_user'); };
@@ -204,7 +215,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const renameSchool = (oldName: string, newName: string) => {
     setSchoolsList(prev => prev.map(s => s === oldName ? newName : s));
-    // Atualiza escola em todos os usuários afetados
     setAllUsers(prev => prev.map(u => {
         let updated = { ...u };
         if (u.school === oldName) updated.school = newName;
@@ -260,7 +270,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider value={{ 
         user, allUsers, schoolsList, activeClassrooms, citiesList,
-        login, register, updateUser, logout, updateAvatar, addXp,
+        login, register, updateUser, logout, updateAvatar, addXp, recoverPassword,
         unlockedUnitIds, toggleUnitLock,
         approveTeacher, deleteUser, toggleUserStatus, addSchool, renameSchool, deleteSchool, addCity,
         addClassroom, updateClassroom, removeClassroom, switchActiveSchool, removeSchoolFromTeacher

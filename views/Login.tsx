@@ -6,20 +6,21 @@ import { useNavigate } from 'react-router-dom';
 import { 
   BookOpen, User, ShieldCheck, Upload, LockKeyhole, MapPin, 
   Building, GraduationCap, CheckCircle2, ChevronRight, X, 
-  AlertTriangle, ArrowLeft, Shield, FileText 
+  AlertTriangle, ArrowLeft, Shield, FileText, KeyRound, Mail 
 } from 'lucide-react';
 import { CLASSES, SHIFTS, BRAZIL_STATES } from '../constants';
 import { isProfane } from '../utils/security';
 
 const Login: React.FC = () => {
-  const { register, login, allUsers, schoolsList, citiesList, activeClassrooms } = useAuth();
+  const { register, login, allUsers, schoolsList, citiesList, activeClassrooms, recoverPassword } = useAuth();
   const navigate = useNavigate();
   
   const [step, setStep] = useState(1); 
   const [role, setRole] = useState<UserRole>(UserRole.STUDENT);
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'recover'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   
   // Form States
   const [email, setEmail] = useState('');
@@ -58,12 +59,28 @@ const Login: React.FC = () => {
       }
   };
 
+  const handleRecoverSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    const result = recoverPassword(email);
+    if (result.success) {
+      setSuccessMsg(result.message);
+    } else {
+      setErrorMsg(result.message);
+    }
+  };
+
   const handleRegisterSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       setErrorMsg('');
 
       if (isProfane(name)) {
         setErrorMsg("O nome escolhido contém palavras inadequadas.");
+        return;
+      }
+
+      if (password.length < 6) {
+        setErrorMsg("A senha deve ter pelo menos 6 caracteres.");
         return;
       }
 
@@ -77,7 +94,7 @@ const Login: React.FC = () => {
       const finalCity = city === 'other' ? customCity : city;
 
       const regResult = register({ 
-        name, email, role, state, city: finalCity,
+        name, email, password, role, state, city: finalCity,
         school: finalSchool, grade, classId, shift, teacherId,
         proofFileUrl: proofFile 
       });
@@ -93,7 +110,6 @@ const Login: React.FC = () => {
   // Filtros Dinâmicos baseados nas ações dos Professores
   const availableSchoolsForCity = useMemo(() => {
     if (!city) return [];
-    // Busca escolas que possuem professores ativos na cidade ou turmas criadas
     const cityTeachers = allUsers.filter(u => u.role === UserRole.TEACHER && u.city === city && u.status === 'active');
     const schools = cityTeachers.flatMap(t => t.teacherSchools || []);
     return Array.from(new Set(schools)).sort();
@@ -125,7 +141,6 @@ const Login: React.FC = () => {
     return Array.from(new Set(teacherRooms.filter(c => c.grade === grade && c.classId === classId).map(c => c.shift))).sort();
   }, [teacherRooms, grade, classId]);
 
-  // UI Step Logic
   if (step === 1) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
@@ -155,29 +170,57 @@ const Login: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
           <div className="bg-white p-8 rounded-[2rem] shadow-2xl w-full max-w-md border-b-8 border-gray-200 animate-fade-in">
-              <button onClick={() => setStep(1)} className="text-gray-400 font-black text-xs mb-6 uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-2"><ArrowLeft size={14} /> Voltar</button>
+              <button onClick={() => { setStep(1); setMode('login'); setErrorMsg(''); setSuccessMsg(''); }} className="text-gray-400 font-black text-xs mb-6 uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-2"><ArrowLeft size={14} /> Voltar</button>
               <h2 className="text-2xl font-black text-gray-800 mb-8 text-center">
-                  {role === UserRole.STUDENT ? 'Área do Aluno' : role === UserRole.TEACHER ? 'Área do Docente' : 'Portal Admin'}
+                  {mode === 'recover' ? 'Recuperar Senha' : role === UserRole.STUDENT ? 'Área do Aluno' : role === UserRole.TEACHER ? 'Área do Docente' : 'Portal Admin'}
               </h2>
               
-              <div className="flex gap-4 mb-8">
-                  <button onClick={() => setMode('login')} className={`flex-1 py-3 font-black rounded-2xl border-b-4 transition-all ${mode === 'login' ? 'bg-primary text-white border-blue-700' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>ENTRAR</button>
-                  {role !== UserRole.ADMIN && (
-                      <button onClick={() => setMode('register')} className={`flex-1 py-3 font-black rounded-2xl border-b-4 transition-all ${mode === 'register' ? 'bg-secondary text-white border-green-700' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>CADASTRAR</button>
-                  )}
-              </div>
+              {mode !== 'recover' && (
+                <div className="flex gap-4 mb-8">
+                    <button onClick={() => { setMode('login'); setErrorMsg(''); }} className={`flex-1 py-3 font-black rounded-2xl border-b-4 transition-all ${mode === 'login' ? 'bg-primary text-white border-blue-700' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>ENTRAR</button>
+                    {role !== UserRole.ADMIN && (
+                        <button onClick={() => { setMode('register'); setErrorMsg(''); }} className={`flex-1 py-3 font-black rounded-2xl border-b-4 transition-all ${mode === 'register' ? 'bg-secondary text-white border-green-700' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>CADASTRAR</button>
+                    )}
+                </div>
+              )}
 
               {mode === 'login' ? (
                   <form onSubmit={handleLoginSubmit} className="space-y-4">
-                      <input type="email" placeholder="Seu email..." value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-100 font-bold focus:border-primary outline-none" required />
-                      {(role === UserRole.ADMIN) && <input type="password" placeholder="Chave mestra..." value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-100 font-bold focus:border-dark outline-none" required />}
-                      {errorMsg && <p className="text-red-500 text-xs font-black text-center">{errorMsg}</p>}
+                      <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                        <input type="email" placeholder="E-mail..." value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-100 font-bold focus:border-primary outline-none" required />
+                      </div>
+                      <div className="relative">
+                        <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                        <input type="password" placeholder="Sua senha..." value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-100 font-bold focus:border-primary outline-none" required />
+                      </div>
+                      
+                      <button type="button" onClick={() => { setMode('recover'); setErrorMsg(''); }} className="text-xs font-black text-primary uppercase tracking-widest hover:underline text-right block w-full">Esqueci minha senha</button>
+
+                      {errorMsg && <p className="text-red-500 text-xs font-black text-center animate-shake">{errorMsg}</p>}
+                      
                       <button type="submit" disabled={isLoading} className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-blue-700 uppercase tracking-widest active:translate-y-1 transition-all">
                         {isLoading ? 'CARREGANDO...' : 'ACESSAR SISTEMA'}
                       </button>
                   </form>
-              ) : (
+              ) : mode === 'register' ? (
                   <button onClick={() => setStep(3)} className="w-full bg-secondary text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-green-700 uppercase tracking-widest active:translate-y-1 transition-all">INICIAR INSCRIÇÃO</button>
+              ) : (
+                <form onSubmit={handleRecoverSubmit} className="space-y-6">
+                    <p className="text-xs font-bold text-gray-400 text-center">Digite seu e-mail cadastrado para receber as instruções.</p>
+                    <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                        <input type="email" placeholder="E-mail..." value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-100 font-bold focus:border-primary outline-none" required />
+                    </div>
+
+                    {successMsg && <p className="text-secondary text-xs font-black text-center p-3 bg-green-50 rounded-xl border border-green-100">{successMsg}</p>}
+                    {errorMsg && <p className="text-red-500 text-xs font-black text-center animate-shake">{errorMsg}</p>}
+
+                    <div className="space-y-3">
+                      <button type="submit" className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-blue-700 uppercase tracking-widest active:translate-y-1 transition-all">RECUPERAR</button>
+                      <button type="button" onClick={() => { setMode('login'); setSuccessMsg(''); setErrorMsg(''); }} className="w-full text-xs font-black text-gray-400 uppercase tracking-widest hover:text-primary">Voltar para o login</button>
+                    </div>
+                </form>
               )}
           </div>
       </div>
@@ -200,6 +243,14 @@ const Login: React.FC = () => {
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Email Principal</label>
                             <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold" placeholder="seu@email.com" />
+                        </div>
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Defina sua Senha</label>
+                        <div className="relative">
+                            <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                            <input required type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold" placeholder="Mínimo 6 caracteres" />
                         </div>
                     </div>
 
@@ -275,9 +326,6 @@ const Login: React.FC = () => {
                                     </select>
                                 </div>
                             </div>
-                            {teacherId && teacherRooms.length === 0 && (
-                                <p className="text-[9px] text-accent font-black uppercase bg-yellow-50 p-3 rounded-xl border border-yellow-100">Este professor ainda não configurou as turmas em seu painel.</p>
-                            )}
                         </>
                     )}
 

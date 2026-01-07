@@ -78,13 +78,14 @@ const TeacherDashboard: React.FC = () => {
 
   const teacherSchools = user?.teacherSchools || (user?.school ? [user.school] : []);
 
-  const handleSwitchSchool = () => {
-    if (tempSelectedSchool && tempSelectedSchool !== user?.school) {
+  const handleSwitchSchool = (schoolName: string) => {
+    setTempSelectedSchool(schoolName);
+    if (schoolName !== user?.school) {
       setIsSwitching(true);
       setTimeout(() => {
-        switchActiveSchool(tempSelectedSchool);
+        switchActiveSchool(schoolName);
         setIsSwitching(false);
-      }, 400);
+      }, 300);
     }
   };
 
@@ -341,7 +342,7 @@ const TeacherDashboard: React.FC = () => {
                       {teacherSchools.map(s => (
                           <div key={s} className="relative group/chip">
                             <button 
-                               onClick={() => setTempSelectedSchool(s)}
+                               onClick={() => handleSwitchSchool(s)}
                                className={`pl-5 pr-12 py-4 rounded-2xl font-black text-sm transition-all flex items-center gap-3 border-2 ${
                                    tempSelectedSchool === s 
                                    ? 'bg-blue-50 border-primary text-primary shadow-sm' 
@@ -362,18 +363,10 @@ const TeacherDashboard: React.FC = () => {
                   </div>
 
                   <div className="flex justify-center md:justify-end pt-6 border-t border-gray-100">
-                      <button 
-                         onClick={handleSwitchSchool}
-                         disabled={isSwitching || !tempSelectedSchool || tempSelectedSchool === user?.school}
-                         className={`font-black px-10 py-5 rounded-2xl shadow-xl border-b-8 flex items-center gap-3 transition-all active:translate-y-1 ${
-                            tempSelectedSchool === user?.school || !tempSelectedSchool
-                            ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed border-b-0 translate-y-2 shadow-none'
-                            : 'bg-primary text-white border-blue-700 hover:brightness-105'
-                         }`}
-                      >
-                         {isSwitching ? <RefreshCw className="animate-spin" /> : <RefreshCw size={20} />} 
-                         SELECIONAR PARA GESTÃO
-                      </button>
+                      <div className="bg-gray-50 px-6 py-4 rounded-2xl flex items-center gap-3 text-gray-500 font-bold text-sm">
+                         {isSwitching ? <RefreshCw className="animate-spin text-primary" /> : <Building size={20} className="text-primary" />} 
+                         <span>Visualizando: <strong>{tempSelectedSchool || 'Selecione uma escola acima'}</strong></span>
+                      </div>
                   </div>
               </div>
 
@@ -450,6 +443,11 @@ const TeacherDashboard: React.FC = () => {
                               </div>
                           </div>
                       ))}
+                      {viewClassrooms.length === 0 && tempSelectedSchool && (
+                        <div className="col-span-full py-12 text-center border-2 border-dashed border-gray-100 rounded-3xl">
+                           <p className="text-gray-400 font-bold italic">Nenhuma turma cadastrada para esta escola.</p>
+                        </div>
+                      )}
                   </div>
               </div>
           </div>
