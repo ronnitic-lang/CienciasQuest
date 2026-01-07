@@ -77,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Persistência automática em cada mudança de estado
+  // Persistência automática robusta
   useEffect(() => { localStorage.setItem('cq_all_users', JSON.stringify(allUsers)); }, [allUsers]);
   useEffect(() => { localStorage.setItem('cq_schools_list', JSON.stringify(schoolsList)); }, [schoolsList]);
   useEffect(() => { localStorage.setItem('cq_active_classrooms', JSON.stringify(activeClassrooms)); }, [activeClassrooms]);
@@ -102,16 +102,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (userData.role === UserRole.TEACHER) {
       const exists = allUsers.some(u => u.role === UserRole.TEACHER && normalizeText(u.name) === normName);
       if (exists) return { success: false, message: "Este professor já possui cadastro no sistema." };
-      
-      if (userData.school) {
-          addSchool(userData.school);
-      }
+    }
+
+    // Se o professor inseriu uma nova escola no ato do registro, ela deve ser global
+    if (userData.school) {
+        addSchool(userData.school);
     }
 
     const newUser: User = {
       id: Date.now().toString(),
       name: userData.name || 'Usuário',
       email: userData.email || '',
+      whatsapp: userData.whatsapp || '',
       password: userData.password || '',
       role: userData.role || UserRole.STUDENT,
       status: userData.role === UserRole.TEACHER ? 'pending' : 'active',
@@ -148,14 +150,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('cq_current_user', JSON.stringify(adminUser));
         return { success: true };
       }
-      return { success: false, message: 'Usuário ou senha administrativa inválidos.' };
+      return { success: false, message: 'Credenciais administrativas incorretas.' };
     }
 
     const foundUser = allUsers.find(u => u.email === email && u.role === role);
-    if (!foundUser) return { success: false, message: 'Usuário não encontrado.' };
-    if (foundUser.password !== password) return { success: false, message: 'Senha incorreta.' };
+    if (!foundUser) return { success: false, message: 'Usuário não cadastrado.' };
+    if (foundUser.password !== password) return { success: false, message: 'Senha inválida.' };
     if (foundUser.status === 'blocked') return { success: false, message: 'Sua conta está suspensa.' };
-    if (foundUser.role === UserRole.TEACHER && foundUser.status === 'pending') return { success: false, message: 'Cadastro em análise pelo administrador.' };
+    if (foundUser.role === UserRole.TEACHER && foundUser.status === 'pending') return { success: false, message: 'Aguardando aprovação do Admin.' };
     
     setUser(foundUser);
     localStorage.setItem('cq_current_user', JSON.stringify(foundUser));
@@ -165,44 +167,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const recoverPassword = (email: string) => {
     const found = allUsers.find(u => u.email === email);
     if (found) {
-      return { success: true, message: `Uma instrução de recuperação foi enviada para ${email}. (Simulação: Sua senha atual é: ${found.password})` };
+      return { success: true, message: `Uma mensagem de recuperação foi enviada. (Senha atual: ${found.password})` };
     }
-    return { success: false, message: "E-mail não encontrado no sistema." };
+    return { success: false, message: "E-mail não localizado." };
   };
 
   const logout = () => { setUser(null); localStorage.removeItem('cq_current_user'); };
-
-  const updateAvatar = (config: AvatarConfig) => {
-    if (user) {
-      const updated = { ...user, avatarConfig: config };
-      setUser(updated);
-      localStorage.setItem('cq_current_user', JSON.stringify(updated));
-      setAllUsers(prev => prev.map(u => u.id === user.id ? updated : u));
-    }
-  };
-
-  const addXp = (amount: number) => {
-    if (user && user.role === UserRole.STUDENT) {
-      const updated = { ...user, xp: (user.xp || 0) + amount };
-      setUser(updated);
-      localStorage.setItem('cq_current_user', JSON.stringify(updated));
-      setAllUsers(prev => prev.map(u => u.id === user.id ? updated : u));
-    }
-  };
-
-  const toggleUnitLock = (unitId: string) => {
-    setUnlockedUnitIds(prev => prev.includes(unitId) ? prev.filter(id => id !== unitId) : [...prev, unitId]);
-  };
-
-  const approveTeacher = (userId: string) => {
-    setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'active', isVerified: true } : u));
-  };
-
-  const toggleUserStatus = (userId: string) => {
-    setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, status: u.status === 'active' ? 'blocked' : 'active' } : u));
-  };
-
-  const deleteUser = (userId: string) => { setAllUsers(prev => prev.filter(u => u.id !== userId)); };
 
   const addSchool = (schoolName: string) => {
     const normalizedNew = normalizeSchoolName(schoolName);
@@ -211,6 +181,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!exists) return [...prev, schoolName];
         return prev;
     });
+  };
+
+  const updateUser = (userId: string, data: Partial<User>) => {
+    setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, ...data } : u));
+    if (user?.id === userId) {
+      const updatedUser = { ...user, ...data };
+      setUser(updatedUser);
+      localStorage.setItem('cq_current_user', JSON.stringify(updatedUser));
+    }
   };
 
   const renameSchool = (oldName: string, newName: string) => {
@@ -258,13 +237,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateUser = (userId: string, data: Partial<User>) => {
-    setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, ...data } : u));
-    if (user?.id === userId) {
-      const updatedUser = { ...user, ...data };
-      setUser(updatedUser);
-      localStorage.setItem('cq_current_user', JSON.stringify(updatedUser));
+  const approveTeacher = (userId: string) => {
+    setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'active', isVerified: true } : u));
+  };
+
+  const toggleUserStatus = (userId: string) => {
+    setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, status: u.status === 'active' ? 'blocked' : 'active' } : u));
+  };
+
+  const deleteUser = (userId: string) => { setAllUsers(prev => prev.filter(u => u.id !== userId)); };
+
+  const updateAvatar = (config: AvatarConfig) => {
+    if (user) updateUser(user.id, { avatarConfig: config });
+  };
+
+  const addXp = (amount: number) => {
+    if (user && user.role === UserRole.STUDENT) {
+      updateUser(user.id, { xp: (user.xp || 0) + amount });
     }
+  };
+
+  const toggleUnitLock = (unitId: string) => {
+    setUnlockedUnitIds(prev => prev.includes(unitId) ? prev.filter(id => id !== unitId) : [...prev, unitId]);
   };
 
   return (

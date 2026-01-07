@@ -34,14 +34,15 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  password?: string; // Nova propriedade para senha
+  whatsapp?: string; // Novo campo para contato
+  password?: string;
   role: UserRole;
   status: 'active' | 'pending' | 'blocked';
   
   state?: string;
   city?: string;
   school?: string;
-  teacherSchools?: string[]; // Lista de escolas vinculadas a este professor
+  teacherSchools?: string[]; 
   grade?: number;
   classId?: string;
   shift?: string;

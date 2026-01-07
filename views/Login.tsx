@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   BookOpen, User, ShieldCheck, Upload, LockKeyhole, MapPin, 
   Building, GraduationCap, CheckCircle2, ChevronRight, X, 
-  AlertTriangle, ArrowLeft, Shield, FileText, KeyRound, Mail 
+  AlertTriangle, ArrowLeft, Shield, FileText, KeyRound, Mail, Phone
 } from 'lucide-react';
 import { CLASSES, SHIFTS, BRAZIL_STATES } from '../constants';
 import { isProfane } from '../utils/security';
@@ -25,6 +25,7 @@ const Login: React.FC = () => {
   // Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
   const [name, setName] = useState('');
   const [state, setState] = useState('');
   const [city, setCity] = useState('');
@@ -37,7 +38,6 @@ const Login: React.FC = () => {
   const [classId, setClassId] = useState('');
   const [shift, setShift] = useState('');
 
-  // Handlers
   const handleRoleSelect = (selectedRole: UserRole) => {
     setErrorMsg('');
     setRole(selectedRole);
@@ -75,17 +75,12 @@ const Login: React.FC = () => {
       setErrorMsg('');
 
       if (isProfane(name)) {
-        setErrorMsg("O nome escolhido contém palavras inadequadas.");
+        setErrorMsg("Nome inválido por conter termos inadequados.");
         return;
       }
 
       if (password.length < 6) {
-        setErrorMsg("A senha deve ter pelo menos 6 caracteres.");
-        return;
-      }
-
-      if (role === UserRole.TEACHER && !proofFile) {
-        setErrorMsg("Por favor, anexe ou indique o link do seu comprovante de vínculo.");
+        setErrorMsg("A senha deve conter ao menos 6 caracteres.");
         return;
       }
       
@@ -94,7 +89,7 @@ const Login: React.FC = () => {
       const finalCity = city === 'other' ? customCity : city;
 
       const regResult = register({ 
-        name, email, password, role, state, city: finalCity,
+        name, email, password, whatsapp, role, state, city: finalCity,
         school: finalSchool, grade, classId, shift, teacherId,
         proofFileUrl: proofFile 
       });
@@ -103,17 +98,20 @@ const Login: React.FC = () => {
       if (regResult.success) {
         setStep(4);
       } else {
-        setErrorMsg(regResult.message || "Erro no cadastro.");
+        setErrorMsg(regResult.message || "Erro durante o cadastro.");
       }
   };
 
-  // Filtros Dinâmicos baseados nas ações dos Professores
+  // Filtros Dinâmicos
   const availableSchoolsForCity = useMemo(() => {
     if (!city) return [];
+    // Professores podem ver todas, alunos veem apenas as vinculadas por seus professores
+    if (role === UserRole.TEACHER) return schoolsList;
+    
     const cityTeachers = allUsers.filter(u => u.role === UserRole.TEACHER && u.city === city && u.status === 'active');
     const schools = cityTeachers.flatMap(t => t.teacherSchools || []);
     return Array.from(new Set(schools)).sort();
-  }, [allUsers, city]);
+  }, [allUsers, city, role, schoolsList]);
 
   const availableTeachersForSchool = useMemo(() => {
     if (!school) return [];
@@ -129,24 +127,16 @@ const Login: React.FC = () => {
     return activeClassrooms.filter(c => c.teacherId === teacherId && c.school === school);
   }, [activeClassrooms, teacherId, school]);
 
-  const availableGrades = useMemo(() => {
-    return Array.from(new Set(teacherRooms.map(c => c.grade))).sort();
-  }, [teacherRooms]);
-
-  const availableClasses = useMemo(() => {
-    return Array.from(new Set(teacherRooms.filter(c => c.grade === grade).map(c => c.classId))).sort();
-  }, [teacherRooms, grade]);
-
-  const availableShifts = useMemo(() => {
-    return Array.from(new Set(teacherRooms.filter(c => c.grade === grade && c.classId === classId).map(c => c.shift))).sort();
-  }, [teacherRooms, grade, classId]);
+  const availableGrades = useMemo(() => Array.from(new Set(teacherRooms.map(c => c.grade))).sort(), [teacherRooms]);
+  const availableClasses = useMemo(() => Array.from(new Set(teacherRooms.filter(c => c.grade === grade).map(c => c.classId))).sort(), [teacherRooms, grade]);
+  const availableShifts = useMemo(() => Array.from(new Set(teacherRooms.filter(c => c.grade === grade && c.classId === classId).map(c => c.shift))).sort(), [teacherRooms, grade, classId]);
 
   if (step === 1) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
           <div className="bg-white p-10 rounded-[2rem] shadow-2xl w-full max-w-md border-b-8 border-gray-200 text-center animate-fade-in">
               <h1 className="text-4xl font-black text-secondary mb-2 tracking-tight">Ciencias<span className="text-primary">Quest</span></h1>
-              <p className="text-gray-400 font-bold mb-10 text-[10px] uppercase tracking-[0.2em]">Sua Jornada na BNCC</p>
+              <p className="text-gray-400 font-bold mb-10 text-[10px] uppercase tracking-[0.2em]">Plataforma Gamificada de Ciências</p>
               
               <div className="space-y-4">
                   <button onClick={() => handleRoleSelect(UserRole.STUDENT)} className="w-full p-6 rounded-3xl border-2 border-primary bg-blue-50 text-primary hover:bg-blue-100 transition-all flex items-center gap-5 group active:scale-95">
@@ -171,15 +161,15 @@ const Login: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
           <div className="bg-white p-8 rounded-[2rem] shadow-2xl w-full max-w-md border-b-8 border-gray-200 animate-fade-in">
               <button onClick={() => { setStep(1); setMode('login'); setErrorMsg(''); setSuccessMsg(''); }} className="text-gray-400 font-black text-xs mb-6 uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-2"><ArrowLeft size={14} /> Voltar</button>
-              <h2 className="text-2xl font-black text-gray-800 mb-8 text-center">
-                  {mode === 'recover' ? 'Recuperar Senha' : role === UserRole.STUDENT ? 'Área do Aluno' : role === UserRole.TEACHER ? 'Área do Docente' : 'Portal Admin'}
+              <h2 className="text-2xl font-black text-gray-800 mb-8 text-center uppercase tracking-tight">
+                  {mode === 'recover' ? 'Apoio à Senha' : role === UserRole.STUDENT ? 'Portal do Estudante' : role === UserRole.TEACHER ? 'Portal Docente' : 'Admin'}
               </h2>
               
               {mode !== 'recover' && (
                 <div className="flex gap-4 mb-8">
                     <button onClick={() => { setMode('login'); setErrorMsg(''); }} className={`flex-1 py-3 font-black rounded-2xl border-b-4 transition-all ${mode === 'login' ? 'bg-primary text-white border-blue-700' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>ENTRAR</button>
                     {role !== UserRole.ADMIN && (
-                        <button onClick={() => { setMode('register'); setErrorMsg(''); }} className={`flex-1 py-3 font-black rounded-2xl border-b-4 transition-all ${mode === 'register' ? 'bg-secondary text-white border-green-700' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>CADASTRAR</button>
+                        <button onClick={() => { setMode('register'); setErrorMsg(''); }} className={`flex-1 py-3 font-black rounded-2xl border-b-4 transition-all ${mode === 'register' ? 'bg-secondary text-white border-green-700' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>CADASTRO</button>
                     )}
                 </div>
               )}
@@ -188,37 +178,32 @@ const Login: React.FC = () => {
                   <form onSubmit={handleLoginSubmit} className="space-y-4">
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
-                        <input type="email" placeholder="E-mail..." value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-100 font-bold focus:border-primary outline-none" required />
+                        <input type="email" placeholder="Seu e-mail..." value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-100 font-bold focus:border-primary outline-none" required />
                       </div>
                       <div className="relative">
                         <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
                         <input type="password" placeholder="Sua senha..." value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-100 font-bold focus:border-primary outline-none" required />
                       </div>
-                      
-                      <button type="button" onClick={() => { setMode('recover'); setErrorMsg(''); }} className="text-xs font-black text-primary uppercase tracking-widest hover:underline text-right block w-full">Esqueci minha senha</button>
-
+                      <button type="button" onClick={() => { setMode('recover'); setErrorMsg(''); }} className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline text-right block w-full">Esqueci meus dados</button>
                       {errorMsg && <p className="text-red-500 text-xs font-black text-center animate-shake">{errorMsg}</p>}
-                      
                       <button type="submit" disabled={isLoading} className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-blue-700 uppercase tracking-widest active:translate-y-1 transition-all">
-                        {isLoading ? 'CARREGANDO...' : 'ACESSAR SISTEMA'}
+                        {isLoading ? 'CONECTANDO...' : 'ACESSAR AGORA'}
                       </button>
                   </form>
               ) : mode === 'register' ? (
-                  <button onClick={() => setStep(3)} className="w-full bg-secondary text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-green-700 uppercase tracking-widest active:translate-y-1 transition-all">INICIAR INSCRIÇÃO</button>
+                  <button onClick={() => setStep(3)} className="w-full bg-secondary text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-green-700 uppercase tracking-widest active:translate-y-1 transition-all">INICIAR MATRÍCULA</button>
               ) : (
                 <form onSubmit={handleRecoverSubmit} className="space-y-6">
-                    <p className="text-xs font-bold text-gray-400 text-center">Digite seu e-mail cadastrado para receber as instruções.</p>
+                    <p className="text-xs font-bold text-gray-400 text-center">Informe seu e-mail cadastrado para enviarmos as instruções.</p>
                     <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
                         <input type="email" placeholder="E-mail..." value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-100 font-bold focus:border-primary outline-none" required />
                     </div>
-
-                    {successMsg && <p className="text-secondary text-xs font-black text-center p-3 bg-green-50 rounded-xl border border-green-100">{successMsg}</p>}
+                    {successMsg && <p className="text-secondary text-xs font-black text-center p-3 bg-green-50 rounded-xl border border-green-100 animate-fade-in">{successMsg}</p>}
                     {errorMsg && <p className="text-red-500 text-xs font-black text-center animate-shake">{errorMsg}</p>}
-
                     <div className="space-y-3">
-                      <button type="submit" className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-blue-700 uppercase tracking-widest active:translate-y-1 transition-all">RECUPERAR</button>
-                      <button type="button" onClick={() => { setMode('login'); setSuccessMsg(''); setErrorMsg(''); }} className="w-full text-xs font-black text-gray-400 uppercase tracking-widest hover:text-primary">Voltar para o login</button>
+                      <button type="submit" className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-blue-700 uppercase tracking-widest active:translate-y-1 transition-all">ENVIAR</button>
+                      <button type="button" onClick={() => { setMode('login'); setSuccessMsg(''); setErrorMsg(''); }} className="w-full text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-primary text-center block">Voltar ao Login</button>
                     </div>
                 </form>
               )}
@@ -230,139 +215,140 @@ const Login: React.FC = () => {
   if (step === 3) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-            <div className="bg-white p-8 rounded-[2rem] shadow-2xl w-full max-w-xl border-b-8 border-gray-200 animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div className="bg-white p-8 rounded-[2rem] shadow-2xl w-full max-w-xl border-b-8 border-gray-200 animate-fade-in max-h-[95vh] overflow-y-auto custom-scrollbar">
                 <button onClick={() => setStep(2)} className="text-gray-400 font-black text-xs mb-6 uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-2"><ArrowLeft size={14} /> Voltar</button>
-                <h2 className="text-2xl font-black text-gray-800 mb-6">Informações de Cadastro</h2>
+                <h2 className="text-2xl font-black text-gray-800 mb-6 uppercase tracking-tight">Formulário de Inscrição</h2>
                 
                 <form onSubmit={handleRegisterSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nome Completo</label>
-                            <input required value={name} onChange={e => setName(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold" placeholder="Ex: João Silva" />
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nome Completo</label>
+                            <input required value={name} onChange={e => setName(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold" placeholder="Nome Sobrenome" />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Email Principal</label>
-                            <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold" placeholder="seu@email.com" />
-                        </div>
-                    </div>
-
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Defina sua Senha</label>
-                        <div className="relative">
-                            <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
-                            <input required type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold" placeholder="Mínimo 6 caracteres" />
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">WhatsApp</label>
+                            <div className="relative">
+                                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                                <input required value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold" placeholder="+55-85-9..." />
+                            </div>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Estado</label>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email de Acesso</label>
+                            <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold" placeholder="seu@email.com" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Senha</label>
+                            <div className="relative">
+                                <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                                <input required type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-primary outline-none font-bold" placeholder="6+ caracteres" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Estado</label>
                             <select required value={state} onChange={e => {setState(e.target.value); setCity('');}} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold">
                                 <option value="">Selecione...</option>
                                 {BRAZIL_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cidade</label>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cidade</label>
                             <select required value={city} onChange={e => {setCity(e.target.value); setSchool('');}} disabled={!state} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
                                 <option value="">Selecione...</option>
                                 {state && citiesList[state]?.map(c => <option key={c} value={c}>{c}</option>)}
-                                {state && role === UserRole.TEACHER && <option value="other">+ Adicionar nova cidade</option>}
+                                {state && role === UserRole.TEACHER && <option value="other">+ Nova Cidade</option>}
                             </select>
                             {city === 'other' && (
-                                <input required value={customCity} onChange={e => setCustomCity(e.target.value)} className="w-full p-4 mt-2 rounded-2xl border-2 border-primary outline-none font-bold animate-fade-in" placeholder="Nome da cidade..." />
+                                <input required value={customCity} onChange={e => setCustomCity(e.target.value)} className="w-full p-4 mt-2 rounded-2xl border-2 border-primary outline-none font-bold animate-bounce-in" placeholder="Nome da cidade..." />
                             )}
                         </div>
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Instituição de Ensino</label>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Escola / Instituição</label>
                         <select required value={school} onChange={e => {setSchool(e.target.value); setTeacherId('');}} disabled={!city} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
-                            <option value="">Selecione sua escola...</option>
-                            {role === UserRole.STUDENT 
-                                ? availableSchoolsForCity.map(s => <option key={s} value={s}>{s}</option>)
-                                : schoolsList.map(s => <option key={s} value={s}>{s}</option>)
-                            }
-                            {city && role === UserRole.TEACHER && <option value="other">+ Outra instituição</option>}
+                            <option value="">Onde você estuda/leciona?</option>
+                            {availableSchoolsForCity.map(s => <option key={s} value={s}>{s}</option>)}
+                            {city && role === UserRole.TEACHER && <option value="other">+ Cadastrar Nova Instituição</option>}
                         </select>
                         {school === 'other' && role === UserRole.TEACHER && (
-                            <input required value={customSchool} onChange={e => setCustomSchool(e.target.value)} className="w-full p-4 mt-2 rounded-2xl border-2 border-primary outline-none font-bold animate-fade-in" placeholder="Nome completo da escola..." />
+                            <input required value={customSchool} onChange={e => setCustomSchool(e.target.value)} className="w-full p-4 mt-2 rounded-2xl border-2 border-primary outline-none font-bold animate-bounce-in" placeholder="Nome completo da unidade..." />
                         )}
                         {role === UserRole.STUDENT && city && availableSchoolsForCity.length === 0 && (
-                            <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">Nenhuma escola com professor cadastrado nesta cidade.</p>
+                            <p className="text-[9px] text-red-500 font-black mt-1 uppercase">Ainda não há professores cadastrados em {city}.</p>
                         )}
                     </div>
 
                     {role === UserRole.STUDENT && (
-                        <>
+                        <div className="space-y-6 pt-2">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Seu Professor(a)</label>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Seu Professor(a)</label>
                                 <select required value={teacherId} onChange={e => setTeacherId(e.target.value)} disabled={!school} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
-                                    <option value="">Selecione seu professor...</option>
+                                    <option value="">Selecione quem leciona ciências...</option>
                                     {availableTeachersForSchool.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                 </select>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ano Escolar</label>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Ano</label>
                                     <select required value={grade} onChange={e => setGrade(Number(e.target.value))} disabled={!teacherId} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
-                                        <option value="">Anos...</option>
+                                        <option value="">Selecione...</option>
                                         {availableGrades.map(g => <option key={g} value={g}>{g}º Ano</option>)}
                                     </select>
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Turma</label>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Turma</label>
                                     <select required value={classId} onChange={e => setClassId(e.target.value)} disabled={!grade} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
-                                        <option value="">Turma...</option>
+                                        <option value="">Selecione...</option>
                                         {availableClasses.map(c => <option key={c} value={c}>{c}</option>)}
                                     </select>
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Turno</label>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Turno</label>
                                     <select required value={shift} onChange={e => setShift(e.target.value)} disabled={!classId} className="w-full p-4 rounded-2xl border-2 border-gray-50 bg-gray-50 outline-none font-bold disabled:opacity-50">
-                                        <option value="">Turno...</option>
+                                        <option value="">Selecione...</option>
                                         {availableShifts.map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
                                 </div>
                             </div>
-                        </>
+                        </div>
                     )}
 
                     {role === UserRole.TEACHER && (
                         <div className="p-6 bg-blue-50 rounded-3xl border-2 border-blue-100 space-y-4">
                             <div className="flex items-center gap-3">
-                                <div className="bg-primary p-2 rounded-lg text-white"><Shield size={20} /></div>
-                                <h3 className="font-black text-primary uppercase text-xs tracking-wider">Comprovação Docente</h3>
+                                <div className="bg-primary p-2 rounded-lg text-white shadow-md"><Shield size={20} /></div>
+                                <h3 className="font-black text-primary uppercase text-xs">Vínculo Docente</h3>
                             </div>
-                            <p className="text-[11px] font-bold text-blue-800/70 leading-relaxed">
-                                Para garantir a segurança dos alunos, solicitamos o envio de um comprovante (Foto do Crachá, Contracheque ou link do Diário Oficial).
+                            <p className="text-[10px] font-bold text-blue-800/60 leading-relaxed">
+                                Para proteção de dados, pedimos o envio de um documento (Crachá ou Contracheque) para validação administrativa.
                             </p>
-                            <div className="flex flex-col gap-2">
-                                <input 
-                                  required 
-                                  type="text" 
-                                  value={proofFile} 
-                                  onChange={e => setProofFile(e.target.value)} 
-                                  placeholder="Link ou nome do arquivo do comprovante..." 
-                                  className="w-full p-4 rounded-2xl border-2 border-white focus:border-primary outline-none font-bold shadow-sm"
-                                />
-                                <div className="flex items-center gap-2 text-gray-400 text-[10px] uppercase font-black px-2">
-                                    <FileText size={14}/> Formatos aceitos: JPG, PNG, PDF ou Link
-                                </div>
-                            </div>
+                            <input 
+                                required 
+                                type="text" 
+                                value={proofFile} 
+                                onChange={e => setProofFile(e.target.value)} 
+                                placeholder="Link ou nome do arquivo do comprovante..." 
+                                className="w-full p-4 rounded-2xl border-2 border-white focus:border-primary outline-none font-bold shadow-sm"
+                            />
                         </div>
                     )}
 
                     {errorMsg && (
-                        <div className="p-4 bg-red-50 text-red-600 rounded-2xl border-2 border-red-100 flex items-center gap-3 text-xs font-bold animate-shake">
+                        <div className="p-4 bg-red-50 text-red-600 rounded-2xl border-2 border-red-100 flex items-center gap-3 text-xs font-black animate-shake uppercase tracking-tighter">
                             <AlertTriangle size={18} /> {errorMsg}
                         </div>
                     )}
 
                     <button type="submit" disabled={isLoading} className="w-full bg-secondary text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-green-700 uppercase tracking-widest active:translate-y-1 transition-all flex items-center justify-center gap-2">
-                        {isLoading ? 'PROCESSANDO...' : (
-                            <>FINALIZAR CADASTRO <ChevronRight size={20} /></>
+                        {isLoading ? 'ENVIANDO DADOS...' : (
+                            <>CONCLUIR CADASTRO <ChevronRight size={20} /></>
                         )}
                     </button>
                 </form>
@@ -378,14 +364,14 @@ const Login: React.FC = () => {
                 <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center text-secondary mx-auto mb-6">
                     <CheckCircle2 size={64} />
                 </div>
-                <h2 className="text-3xl font-black text-gray-800 mb-4">Cadastro Concluído!</h2>
-                <p className="text-gray-500 font-bold mb-8">
+                <h2 className="text-3xl font-black text-gray-800 mb-4">Parabéns!</h2>
+                <p className="text-gray-500 font-bold mb-8 leading-relaxed">
                     {role === UserRole.STUDENT 
-                      ? "Seu perfil foi criado com sucesso. Agora você pode entrar e começar sua jornada!" 
-                      : "Seu cadastro docente foi enviado para análise. Em breve um administrador aprovará seu acesso."}
+                      ? "Seu perfil de estudante foi criado. Prepare-se para a gincana de conhecimento!" 
+                      : "Recebemos sua solicitação docente. Nossa equipe administrativa analisará seu comprovante em breve."}
                 </p>
                 <button onClick={() => { setStep(2); setMode('login'); }} className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-blue-700 uppercase tracking-widest active:translate-y-1 transition-all">
-                    IR PARA LOGIN
+                    FAZER LOGIN
                 </button>
             </div>
         </div>
