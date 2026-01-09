@@ -1,0 +1,15 @@
+[debug] [2026-01-09T16:24:43.034Z] ----------------------------------------------------------------------
+[debug] [2026-01-09T16:24:43.038Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\RONNIELLE\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js use --add
+[debug] [2026-01-09T16:24:43.038Z] CLI Version:   15.2.1
+[debug] [2026-01-09T16:24:43.038Z] Platform:      win32
+[debug] [2026-01-09T16:24:43.038Z] Node Version:  v24.12.0
+[debug] [2026-01-09T16:24:43.039Z] Time:          Fri Jan 09 2026 13:24:43 GMT-0300 (Horário Padrão de Brasília)
+[debug] [2026-01-09T16:24:43.039Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-01-09T16:24:43.274Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-01-09T16:24:43.274Z] > authorizing via signed-in user (ronnitic@gmail.com)
+[debug] [2026-01-09T16:24:43.276Z] Checked if tokens are valid: true, expires at: 1767978693960
+[debug] [2026-01-09T16:24:43.276Z] Checked if tokens are valid: true, expires at: 1767978693960
+[debug] [2026-01-09T16:24:43.277Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
+[debug] [2026-01-09T16:24:44.086Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2026-01-09T16:24:44.086Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
