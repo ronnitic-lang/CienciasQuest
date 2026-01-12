@@ -7,6 +7,11 @@ export default defineConfig({
   define: {
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY || '')
   },
+  resolve: {
+    alias: {
+      'react-is': 'react-is'
+    }
+  },
   build: {
     outDir: 'dist',
     sourcemap: false,
@@ -16,8 +21,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['lucide-react', 'recharts'],
-          ai: ['@google/genai']
+          ui: ['lucide-react', 'recharts']
         }
       }
     }

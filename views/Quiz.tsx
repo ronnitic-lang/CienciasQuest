@@ -8,24 +8,15 @@ import { ArrowRight, CheckCircle, XCircle, RefreshCw, Trophy, BrainCircuit, Zap,
 import { useAuth } from '../context/AuthContext';
 import Mascot from '../components/Mascot';
 
-// Função para embaralhar alternativas e retornar novo índice correto
 const shuffleOptions = (question: Question): Question => {
     const options = [...question.options];
     const correctText = options[question.correctAnswer as number];
-    
-    // Fisher-Yates shuffle
     for (let i = options.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [options[i], options[j]] = [options[j], options[i]];
     }
-    
     const newCorrectIdx = options.findIndex(opt => opt === correctText);
-    
-    return {
-        ...question,
-        options,
-        correctAnswer: newCorrectIdx
-    };
+    return { ...question, options, correctAnswer: newCorrectIdx };
 };
 
 const Quiz: React.FC = () => {
@@ -41,45 +32,44 @@ const Quiz: React.FC = () => {
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
   
-  // Gincana States
   const [teamScoreA, setTeamScoreA] = useState(0);
   const [teamScoreB, setTeamScoreB] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
 
   const unit = MOCK_UNITS.find(u => u.id === unitId);
-  const isPisa = unit?.type === 'exam';
-  const isReview = unit?.type === 'review';
-  const isGincana = unit?.type === 'gincana';
 
   useEffect(() => {
     const loadQuiz = async () => {
       if (unit) {
         setLoading(true);
-        // Busca questões baseadas no tipo e código BNCC (IA ou Banco Fixo)
-        const rawQuestions = await generateQuestions(
-            unit.description, 
-            unit.grade, 
-            unit.type || 'standard',
-            unit.title.startsWith('EF') ? unit.title : undefined 
-        );
-        
-        // Aplica embaralhamento de alternativas para cada questão (Anti-Cola)
-        const shuffled = rawQuestions.map(q => shuffleOptions(q));
-        
-        setQuestions(shuffled);
-        setLoading(false);
+        try {
+            const rawQuestions = await generateQuestions(
+                unit.description, 
+                unit.grade, 
+                unit.type || 'standard',
+                unit.title.startsWith('EF') ? unit.title : undefined 
+            );
+            const shuffled = rawQuestions.map(q => shuffleOptions(q));
+            setQuestions(shuffled);
+        } catch (err) {
+            console.error("Erro ao carregar questões:", err);
+        } finally {
+            setLoading(false);
+        }
+      } else if (!loading) {
+          // Se não encontrar a unidade, volta para o mapa
+          navigate('/dashboard');
       }
     };
     loadQuiz();
-  }, [unit]);
+  }, [unit, navigate]);
 
-  // Timer para Gincana
   useEffect(() => {
-      if (isGincana && !isAnswered && !loading && !showResult) {
+      if (unit?.type === 'gincana' && !isAnswered && !loading && !showResult) {
           const timer = setInterval(() => {
               setTimeLeft(prev => {
                   if (prev <= 1) {
-                      handleCheck(); // Autocheck se o tempo acabar
+                      handleCheck();
                       return 30;
                   }
                   return prev - 1;
@@ -87,7 +77,7 @@ const Quiz: React.FC = () => {
           }, 1000);
           return () => clearInterval(timer);
       }
-  }, [isGincana, isAnswered, loading, showResult]);
+  }, [unit, isAnswered, loading, showResult]);
 
   const handleOptionClick = (idx: number) => {
     if (isAnswered) return;
@@ -95,19 +85,19 @@ const Quiz: React.FC = () => {
   };
 
   const handleCheck = () => {
-    if (selectedOption === null && isGincana) {
+    if (selectedOption === null && unit?.type === 'gincana') {
         setIsAnswered(true);
-        setTeamScoreB(prev => prev + 10); // Adversário ganha pontos se você não responder
+        setTeamScoreB(prev => prev + 10);
         return;
     }
-    if (selectedOption === null) return;
+    if (selectedOption === null || questions.length === 0) return;
     
     setIsAnswered(true);
     if (selectedOption === questions[currentIdx].correctAnswer) {
         setScore(prev => prev + 1);
-        if (isGincana) setTeamScoreA(prev => prev + 15);
+        if (unit?.type === 'gincana') setTeamScoreA(prev => prev + 15);
     } else {
-        if (isGincana) setTeamScoreB(prev => prev + 10);
+        if (unit?.type === 'gincana') setTeamScoreB(prev => prev + 10);
     }
   };
 
@@ -119,19 +109,21 @@ const Quiz: React.FC = () => {
       setTimeLeft(30);
     } else {
       setShowResult(true);
+      const isPisa = unit?.type === 'exam';
+      const isGincana = unit?.type === 'gincana';
       const finalXp = score * (isPisa ? 20 : isGincana ? 15 : 10);
       addXp(finalXp);
     }
   };
 
-  if (loading) {
+  if (loading || !unit) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
-        <div className={`animate-bounce p-4 rounded-full ${isGincana ? 'bg-purple-100' : 'bg-blue-100'}`}>
-            {isGincana ? <Zap size={80} className="text-purple-600" fill="currentColor"/> : <BrainCircuit size={80} className="text-primary"/>}
+        <div className={`animate-bounce p-4 rounded-full ${unit?.type === 'gincana' ? 'bg-purple-100' : 'bg-blue-100'}`}>
+            {unit?.type === 'gincana' ? <Zap size={80} className="text-purple-600" fill="currentColor"/> : <BrainCircuit size={80} className="text-primary"/>}
         </div>
         <p className="text-xl font-black text-gray-700 text-center px-4 uppercase tracking-tighter">
-          {isPisa ? 'Preparando Simulado PISA...' : isReview ? 'Iniciando Revisão do 5º Ano...' : isGincana ? 'AQUECENDO PARA A GINCANA!' : `Carregando Atividade: ${unit?.title}`}
+          Carregando conteúdo...
         </p>
       </div>
     );
@@ -139,6 +131,7 @@ const Quiz: React.FC = () => {
 
   if (showResult) {
      const performance = (score / questions.length) * 100;
+     const isGincana = unit?.type === 'gincana';
      const userWonGincana = teamScoreA >= teamScoreB;
 
      return (
@@ -173,14 +166,11 @@ const Quiz: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-center pt-4 border-t">
                     <span className="font-black text-gray-400 uppercase text-xs tracking-widest">XP Ganho</span>
-                    <span className="font-black text-2xl text-yellow-500">+{score * (isPisa ? 20 : isGincana ? 15 : 10)} XP</span>
+                    <span className="font-black text-2xl text-yellow-500">+{score * (unit.type === 'exam' ? 20 : isGincana ? 15 : 10)} XP</span>
                 </div>
             </div>
 
-            <button 
-               onClick={() => navigate('/dashboard')}
-               className="w-full max-w-md bg-secondary hover:bg-green-600 text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-green-700 transition-all active:translate-y-1 mx-4"
-            >
+            <button onClick={() => navigate('/dashboard')} className="w-full max-w-md bg-secondary hover:bg-green-600 text-white font-black py-5 rounded-2xl shadow-xl border-b-8 border-green-700 transition-all active:translate-y-1 mx-4">
                 VOLTAR PARA O MAPA
             </button>
         </div>
@@ -188,11 +178,13 @@ const Quiz: React.FC = () => {
   }
 
   const currentQ = questions[currentIdx];
-  const progress = ((currentIdx) / questions.length) * 100;
+  const progress = questions.length > 0 ? ((currentIdx) / questions.length) * 100 : 0;
+  const isGincana = unit?.type === 'gincana';
+
+  if (!currentQ) return null;
 
   return (
     <div className={`max-w-2xl mx-auto pb-32 px-4 ${isGincana ? 'bg-purple-50/30 rounded-[3rem] p-4' : ''}`}>
-      {/* Gincana Placar Superior */}
       {isGincana && (
           <div className="flex justify-between items-center bg-purple-600 text-white p-6 rounded-[2rem] shadow-xl mb-8 border-b-8 border-purple-800 animate-float">
              <div className="flex items-center gap-3">
@@ -216,7 +208,6 @@ const Quiz: React.FC = () => {
           </div>
       )}
 
-      {/* Progress Bar (Standard) */}
       {!isGincana && (
           <div className="flex items-center gap-4 mb-8">
             <button onClick={() => navigate('/dashboard')} className="text-gray-400 font-black text-sm">SAIR</button>
@@ -229,8 +220,8 @@ const Quiz: React.FC = () => {
 
       <div className={`bg-white p-8 rounded-3xl shadow-sm border border-gray-100 mb-8 animate-fade-in ${isGincana ? 'ring-4 ring-purple-100' : ''}`}>
         <div className="flex flex-wrap gap-2 mb-4">
-            {isPisa && <span className="bg-accent/20 text-yellow-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase">Simulado PISA</span>}
-            {isReview && <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase">Revisão</span>}
+            {unit?.type === 'exam' && <span className="bg-accent/20 text-yellow-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase">Simulado PISA</span>}
+            {unit?.type === 'review' && <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase">Revisão</span>}
             {isGincana && <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase">Gincana Bimestral</span>}
             {currentQ.bnccCode && <span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase">{currentQ.bnccCode}</span>}
         </div>
@@ -240,24 +231,14 @@ const Quiz: React.FC = () => {
           {currentQ.options.map((option, idx) => {
              let stateClass = "border-gray-100 hover:bg-gray-50 bg-white";
              const letters = ['A', 'B', 'C', 'D'];
-             
-             if (selectedOption === idx) {
-                 stateClass = isGincana ? "border-purple-500 bg-purple-50 text-purple-700" : "border-primary bg-blue-50 text-blue-700";
-             }
-
+             if (selectedOption === idx) stateClass = isGincana ? "border-purple-500 bg-purple-50 text-purple-700" : "border-primary bg-blue-50 text-blue-700";
              if (isAnswered) {
                  if (idx === currentQ.correctAnswer) stateClass = "border-secondary bg-green-50 text-secondary ring-4 ring-green-100";
                  else if (idx === selectedOption) stateClass = "border-red-500 bg-red-50 text-red-600";
                  else stateClass = "border-gray-50 opacity-40 grayscale";
              }
-
              return (
-                <button
-                    key={idx}
-                    disabled={isAnswered}
-                    onClick={() => handleOptionClick(idx)}
-                    className={`w-full p-5 rounded-2xl border-2 text-left font-bold transition-all flex items-center gap-4 ${stateClass}`}
-                >
+                <button key={idx} disabled={isAnswered} onClick={() => handleOptionClick(idx)} className={`w-full p-5 rounded-2xl border-2 text-left font-bold transition-all flex items-center gap-4 ${stateClass}`}>
                     <span className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center font-black text-sm border-2 ${selectedOption === idx ? 'bg-current text-white' : 'bg-gray-50 text-gray-400'}`}>
                         {letters[idx]}
                     </span>
@@ -268,7 +249,6 @@ const Quiz: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Action Bar */}
       <div className={`fixed bottom-0 left-0 right-0 p-6 border-t bg-white/90 backdrop-blur-md z-50 transition-all duration-300 ${isAnswered ? 'h-52 md:h-28' : 'h-24'}`}>
          <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
             {isAnswered && (
@@ -282,17 +262,8 @@ const Quiz: React.FC = () => {
                     {currentQ.explanation && <p className="text-[10px] font-bold opacity-80 leading-tight">{currentQ.explanation}</p>}
                 </div>
             )}
-            
-            <button
-                onClick={isAnswered ? handleNext : handleCheck}
-                disabled={selectedOption === null && !isAnswered}
-                className={`w-full md:w-auto px-12 py-5 rounded-2xl font-black text-white shadow-xl border-b-8 transition-all active:translate-y-1 active:border-b-4
-                    ${isAnswered 
-                        ? (selectedOption === currentQ.correctAnswer ? 'bg-secondary border-green-700' : 'bg-red-500 border-red-700') 
-                        : (isGincana ? 'bg-purple-600 border-purple-800' : 'bg-primary border-blue-700')
-                    }
-                `}
-            >
+            <button onClick={isAnswered ? handleNext : handleCheck} disabled={selectedOption === null && !isAnswered} className={`w-full md:w-auto px-12 py-5 rounded-2xl font-black text-white shadow-xl border-b-8 transition-all active:translate-y-1 active:border-b-4
+                    ${isAnswered ? (selectedOption === currentQ.correctAnswer ? 'bg-secondary border-green-700' : 'bg-red-500 border-red-700') : (isGincana ? 'bg-purple-600 border-purple-800' : 'bg-primary border-blue-700')}`}>
                 {isAnswered ? (currentIdx === questions.length - 1 ? 'RESULTADO FINAL' : 'PRÓXIMA RODADA') : 'RESPONDER'}
             </button>
          </div>
