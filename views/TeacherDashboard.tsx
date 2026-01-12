@@ -6,7 +6,7 @@ import {
   Users, BookOpen, AlertCircle, Building, Check, PlusCircle, 
   GraduationCap, X, Trophy, RefreshCw, Search, ChevronRight, 
   Trash2, ToggleLeft, ToggleRight, Clock, Edit3, Save, Zap,
-  Mail, Phone
+  Mail, Phone, LayoutList
 } from 'lucide-react';
 import { MOCK_UNITS, CLASSES, SHIFTS } from '../constants';
 import { useAuth } from '../context/AuthContext';
@@ -211,7 +211,7 @@ const TeacherDashboard: React.FC = () => {
       {/* Header Dashboard */}
       <div className="mb-10">
           <h1 className="text-3xl font-black text-gray-800 tracking-tight uppercase leading-none">
-            {currentTab === 'overview' ? 'Visão Geral' : currentTab === 'curriculum' ? 'Módulos Ativos' : 'Gerenciar Rede Escolar'}
+            {currentTab === 'overview' ? 'Monitoramento' : currentTab === 'curriculum' ? 'Visão Geral do Currículo' : 'Gerenciar Rede Escolar'}
           </h1>
           <div className="flex items-center gap-3 mt-3 bg-white w-fit px-4 py-2 rounded-2xl shadow-sm border border-gray-100">
              <Building size={16} className="text-primary" />
@@ -221,18 +221,25 @@ const TeacherDashboard: React.FC = () => {
 
       {currentTab === 'overview' && (
           <div className="animate-fade-in space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-5">
-                    <div className="bg-blue-100 p-4 rounded-2xl text-primary shadow-inner"><Users size={32} /></div>
+                    <div className="bg-blue-100 p-4 rounded-2xl text-primary shadow-inner"><Users size={28} /></div>
                     <div>
-                        <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Estudantes na Unidade</p>
+                        <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Alunos Ativos</p>
                         <p className="text-3xl font-black text-gray-800">{schoolRanking.length}</p>
                     </div>
                 </div>
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-5">
-                    <div className="bg-green-100 p-4 rounded-2xl text-secondary shadow-inner"><BookOpen size={32} /></div>
+                    <div className="bg-green-100 p-4 rounded-2xl text-secondary shadow-inner"><BookOpen size={28} /></div>
                     <div>
-                        <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Habilidades Mapeadas</p>
+                        <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Habilidades</p>
+                        <p className="text-3xl font-black text-gray-800">{myUnits.filter(u => u.type === 'standard').length}</p>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-5">
+                    <div className="bg-purple-100 p-4 rounded-2xl text-purple-600 shadow-inner"><LayoutList size={28} /></div>
+                    <div>
+                        <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Atividades</p>
                         <p className="text-3xl font-black text-gray-800">{myUnits.length}</p>
                     </div>
                 </div>

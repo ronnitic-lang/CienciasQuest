@@ -50,7 +50,7 @@ const Avatar: React.FC<AvatarProps> = ({ config, size = 100, className = '' }) =
         <path d="M85,115 Q100,110 115,115 L115,118 Q100,115 85,118 Z" fill={config.hairColor} />
       )}
 
-      {/* LAYER 4: Hair Styles (Based on Provided Image) */}
+      {/* LAYER 4: Hair Styles */}
       {config.hairStyle === 'short' && (
         <path d="M50,85 Q50,25 100,25 T150,85 L150,95 Q100,80 50,95 Z" fill={config.hairColor} />
       )}
@@ -72,7 +72,26 @@ const Avatar: React.FC<AvatarProps> = ({ config, size = 100, className = '' }) =
       <circle cx="118" cy="95" r="4" fill="#000" />
       <path d="M85,120 Q100,132 115,120" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" />
 
-      {/* LAYER 6: Accessories */}
+      {/* LAYER 6: Headwear Accessories */}
+      {config.headwear === 'cocar' && (
+        <g transform="translate(60, 15)">
+            <path d="M0,35 L15,0 L30,35" fill="#FF5722" />
+            <path d="M25,40 L40,5 L55,40" fill="#FFC107" />
+            <path d="M50,40 L65,5 L80,40" fill="#03A9F4" />
+            <rect y="35" width="80" height="10" rx="5" fill="#795548" />
+        </g>
+      )}
+      {config.headwear === 'turban' && (
+        <path d="M50,75 Q100,15 150,75 L155,90 Q100,80 45,90 Z" fill="#673AB7" />
+      )}
+      {config.headwear === 'strawHat' && (
+        <g>
+            <path d="M40,85 Q100,50 160,85" fill="#D7CCC8" stroke="#8D6E63" strokeWidth="2" />
+            <path d="M20,85 Q100,75 180,85 L180,95 Q100,105 20,95 Z" fill="#EFEBE9" stroke="#8D6E63" strokeWidth="1" />
+        </g>
+      )}
+
+      {/* LAYER 7: Glasses */}
       {config.accessory === 'glasses' && (
         <g stroke="#333" strokeWidth="2.5" fill="none" opacity="0.8">
           <circle cx="82" cy="95" r="14" />
